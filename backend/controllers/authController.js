@@ -2,32 +2,32 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { googleClient, GOOGLE_CLIENT_ID } = require("../config/google");
+const sendWelcomeEmail = require("../utils/sendEmail");
 
-// Use environment variables for secrets
-const JWT_SECRET = process.env.JWT_SECRET || "lostlink_secret_key";
+
+// Helper to get secret dynamically (prevents 'undefined' on startup)
+const getSecret = () => process.env.JWT_SECRET;
 
 /* REGISTER */
 exports.register = async (req, res) => {
   try {
     const { full_name, email, password } = req.body;
-
     if (!full_name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if user already exists
     const [existing] = await db.promise().query("SELECT * FROM users WHERE email = ?", [email]);
     if (existing.length) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Encrypt password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // FIXED: SQL had 4 '?' but only 3 values were passed
     const sql = `INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)`;
-
     await db.promise().query(sql, [full_name, email, hashedPassword]);
+
+    sendWelcomeEmail(email, full_name).catch(err => 
+      console.error("Background Email Error:", err)
+    );
 
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
@@ -40,42 +40,31 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    const sql = "SELECT * FROM users WHERE email = ?";
-    const [users] = await db.promise().query(sql, [email]);
+    const [users] = await db.promise().query("SELECT * FROM users WHERE email = ?", [email]);
 
     if (users.length === 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const user = users[0];
-
     if (user.is_blocked) {
-  return res.status(403).json({ message: "Your account is blocked. Please contact support." });
-}
+      return res.status(403).json({ message: "Your account is blocked. Please contact support." });
+    }
 
-    // Handle Google users trying to login via standard form
     if (user.password === "GOOGLE_USER") {
       return res.status(400).json({ message: "Please use Google Login for this account" });
     }
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Create token
-    // const token = jwt.sign(
-    //   { user_id: user.user_id },
-    //   JWT_SECRET,
-    //   { expiresIn: "7d" }
-    // );
     const token = jwt.sign(
-  { user_id: user.user_id, role: user.role }, // Include role here
-  JWT_SECRET,
-  { expiresIn: "7d" }
-);
+      { user_id: user.user_id, role: user.role }, 
+      getSecret(), 
+      { expiresIn: "7d" }
+    );
 
     res.json({
       message: "Login successful",
@@ -83,7 +72,8 @@ exports.login = async (req, res) => {
       user: {
         user_id: user.user_id,
         full_name: user.full_name,
-        email: user.email
+        email: user.email,
+        role: user.role
       }
     });
   } catch (err) {
@@ -92,44 +82,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// /* GOOGLE LOGIN */
-// exports.googleLogin = async (req, res) => {
-//   try {
-//     const { token } = req.body;
-
-//     const ticket = await googleClient.verifyIdToken({
-//       idToken: token,
-//       audience: GOOGLE_CLIENT_ID,
-//     });
-
-//     console.log(ticket.getPayload());
-//     const { email, name } = ticket.getPayload();
-
-//     const [users] = await db.promise().query("SELECT * FROM users WHERE email = ?", [email]);
-//     let user = users[0];
-
-
-//     if (user && user.is_blocked) {
-//        return res.status(403).json({ message: "Your account is blocked." });
-//     }
-
-//     if (!user) {
-//       const [result] = await db.promise().query(
-//         "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)",
-//         [name, email, "GOOGLE_USER"]
-//       );
-
-//       user = { user_id: result.insertId, full_name: name, email };
-//     }
-
-//     const jwtToken = jwt.sign({ user_id: user.user_id , role: user.role}, JWT_SECRET, { expiresIn: "7d" });
-
-//     res.json({ token: jwtToken, user });
-//   } catch (err) {
-//     console.error("Google Auth Error:", err.response?.data || err.message || err);
-//     res.status(401).json({ message: "Google login failed" });
-//   }
-// };
 
 /* GOOGLE LOGIN */
 exports.googleLogin = async (req, res) => {
@@ -148,38 +100,34 @@ exports.googleLogin = async (req, res) => {
        return res.status(403).json({ message: "Your account is blocked." });
     }
 
+    // Check if it's a NEW user
     if (!user) {
-      // Set default role as 'user' for new Google signups
       const [result] = await db.promise().query(
-        "INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)",
-        [name, email, "GOOGLE_USER", "user"] 
+        "INSERT INTO users (full_name, email, password, role, profile_image) VALUES (?, ?, ?, ?, ?)",
+        [name, email, "GOOGLE_USER", "user", picture] 
       );
+      
+      user = { user_id: result.insertId, full_name: name, email: email, role: "user" };
 
-      user = { 
-        user_id: result.insertId, 
-        full_name: name, 
-        email: email, 
-        role: "user",
-        profile_image: picture // Useful to save the Google profile pic!
-      };
+      // --- TRIGGER EMAIL FOR NEW GOOGLE USER ---
+      sendWelcomeEmail(email, name).catch(err => 
+        console.error("Background Google Welcome Email Error:", err)
+      );
     }
 
-    // Use JWT_SECRET and ensure user.role exists
     const jwtToken = jwt.sign(
       { user_id: user.user_id, role: user.role || "user" }, 
-      JWT_SECRET, 
+      getSecret(), 
       { expiresIn: "7d" }
     );
 
-    // IMPORTANT: Send back 'token' so frontend localStorage.setItem("token", data.token) works!
     res.json({ 
       token: jwtToken, 
       user: {
         user_id: user.user_id,
         full_name: user.full_name,
         email: user.email,
-        role: user.role || "user",
-        profile_image: user.profile_image
+        role: user.role || "user"
       } 
     });
   } catch (err) {
@@ -188,28 +136,17 @@ exports.googleLogin = async (req, res) => {
   }
 };
 
-
 /* GET CURRENT USER DATA */
 exports.getMe = async (req, res) => {
   try {
-    // UPDATED: Added profile_image to the SELECT statement
-    // const [rows] = await db.promise().query(
-    //   "SELECT user_id, full_name, email, profile_image FROM users WHERE user_id = ?", 
-    //   [req.user.user_id]
-    // );
-
-    // Log this to see what 'decoded' actually contains
-        console.log("User from token:", req.user);
     const [rows] = await db.promise().query(
-  "SELECT user_id, full_name, email, profile_image, role FROM users WHERE user_id = ?", 
-  [req.user.user_id]
-);
+      "SELECT user_id, full_name, email, profile_image, role FROM users WHERE user_id = ?", 
+      [req.user.user_id]
+    );
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    // This now sends the full_name, email, and profile_image to React
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -217,14 +154,13 @@ exports.getMe = async (req, res) => {
   }
 };
 
-
+/* UPDATE PROFILE */
 exports.updateProfile = async (req, res) => {
   try {
     const { full_name, email } = req.body;
     let query = "UPDATE users SET full_name = ?, email = ? WHERE user_id = ?";
     let params = [full_name, email, req.user.user_id];
 
-    // If a file was uploaded, update the image path too
     if (req.file) {
       const imagePath = `/uploads/${req.file.filename}`;
       query = "UPDATE users SET full_name = ?, email = ?, profile_image = ? WHERE user_id = ?";
@@ -232,30 +168,27 @@ exports.updateProfile = async (req, res) => {
     }
 
     await db.promise().query(query, params);
+    
+    // Fetch updated user to return clean data
+    const [updated] = await db.promise().query("SELECT * FROM users WHERE user_id = ?", [req.user.user_id]);
+
     res.json({ 
       message: "Profile updated successfully",
-      profile_image: req.file ? `/uploads/${req.file.filename}` : null
-     });
+      user: updated[0]
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Update failed" });
   }
 };
 
-
 /* CHANGE PASSWORD */
 exports.changePassword = async (req, res) => {
   try {
     const { password } = req.body;
+    if (!password) return res.status(400).json({ message: "Password is required" });
 
-    if (!password) {
-      return res.status(400).json({ message: "Password is required" });
-    }
-
-    // Hash new password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update password in database
     await db.promise().query(
       "UPDATE users SET password = ? WHERE user_id = ?",
       [hashedPassword, req.user.user_id]
@@ -263,7 +196,7 @@ exports.changePassword = async (req, res) => {
 
     res.json({ message: "Password updated successfully" });
   } catch (err) {
-    console.error("Change Password Error:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error updating password" });
   }
 };
