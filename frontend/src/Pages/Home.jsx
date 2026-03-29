@@ -6,14 +6,12 @@ import mainImg from "../assets/myphoto.jpg";
 function Home() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true); // loading state
+  const [loading, setLoading] = useState(true);
 
-  // Fetch the latest items
   useEffect(() => {
     setLoading(true);
     axios.get("http://localhost:5000/api/items/feed")
       .then(res => {
-        // IMPROVEMENT: Filter out 'resolved' items and show only active ones
         const activeItems = res.data.filter(item => item.status !== 'resolved');
         setItems(activeItems.slice(0, 6)); 
       })
@@ -22,95 +20,125 @@ function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-[#F8EDEB] to-[#E9F7D8]">
+    <div className="min-h-screen bg-[#F4F6F8]">
       
-      {/* HERO SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-center px-8 md:px-20 py-16 gap-10">
-        <div className="w-full md:w-1/2 space-y-6">
-          <h1 className="text-5xl md:text-7xl font-bold leading-tight text-gray-900">
-            Find & <br /> Recover <br /> <span className="text-[#3D7D24]">With Ease</span>
-          </h1>
-          <p className="text-lg text-gray-600 max-w-md">
-            Experience effortless recovery with our dedicated lost and found service. 
-            Connect with your belongings in just a few clicks.
-          </p>
-          <div className="flex gap-4 pt-4">
-            <button onClick={() => navigate("/report-lost")} className="bg-[#FF6B6B] hover:bg-[#ff5252] text-white px-8 py-3 rounded-lg text-xl font-semibold shadow-lg transition-all">
-              Lost Something?
-            </button>
-            <button onClick={() => navigate("/report-found")} className="bg-[#4CAF50] hover:bg-[#43a047] text-white px-8 py-3 rounded-lg text-xl font-semibold shadow-lg transition-all">
-              Found Something?
-            </button>
-          </div>
-        </div>
-        <div className="w-full md:w-1/2 flex justify-center">
-          <img src={mainImg} alt="Hero" className="w-[90%] max-w-md rounded-2xl shadow-2xl transform hover:scale-105 transition-transform duration-300" />
-        </div>
-      </div>
+      {/* HERO */}
+      <div className="max-w-7xl mx-auto px-8 py-24 flex flex-col md:flex-row items-center gap-16">
+  
+  {/* LEFT */}
+  <div className="flex-1 space-y-8">
+    <h1 className="text-4xl md:text-6xl font-semibold text-gray-900 leading-tight tracking-tight">
+      Lost & Found,
+      <br />
+      <span className="text-gray-600">Simplified</span>
+    </h1>
 
-      {/* IMPROVED LIVE FEED SECTION */}
-      <div className="px-8 md:px-20 py-12">
-        <div className="flex justify-between items-end mb-8">
-          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <span className="w-2 h-8 bg-[#FF6B6B] rounded-full"></span>
+    <p className="text-gray-500 max-w-md text-base leading-relaxed">
+      A streamlined way to report, discover, and recover lost belongings with clarity and ease.
+    </p>
+
+    <div className="flex gap-4 pt-2">
+      <button
+        onClick={() => navigate("/report-lost")}
+        className="bg-gray-900 text-white px-7 py-3 rounded-lg text-sm font-medium shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+      >
+        Report Lost
+      </button>
+
+      <button
+        onClick={() => navigate("/report-found")}
+        className="border border-gray-300 bg-white text-gray-700 px-7 py-3 rounded-lg text-sm font-medium hover:bg-gray-100 hover:-translate-y-0.5 transition-all duration-200"
+      >
+        Report Found
+      </button>
+    </div>
+  </div>
+
+  {/* RIGHT */}
+  <div className="flex-1 flex justify-center relative">
+    
+    {/* subtle background shapes */}
+    <div className="absolute -top-8 -left-8 w-32 h-32 bg-gray-200 rounded-full blur-2xl opacity-40"></div>
+    <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-gray-300 rounded-full blur-2xl opacity-30"></div>
+
+    <img
+      src={mainImg}
+      alt="Hero"
+      className="w-[85%] max-w-sm rounded-2xl border border-gray-200 shadow-lg hover:scale-105 transition-transform duration-500"
+    />
+  </div>
+</div>
+
+      {/* FEED */}
+      <div className="max-w-7xl mx-auto px-8 pb-20">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-xl font-semibold text-gray-800">
             Recent Activity
           </h2>
-          <Link to="/all-items" className="text-[#3D7D24] font-bold hover:underline">View All →</Link>
+
+          <Link
+            to="/all-items"
+            className="text-sm text-gray-500 hover:text-gray-800 transition"
+          >
+            View all
+          </Link>
         </div>
 
         {loading ? (
-          /* Loading Placeholder */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map(n => (
-              <div key={n} className="h-64 bg-gray-200 animate-pulse rounded-xl"></div>
+              <div key={n} className="h-56 bg-gray-200 animate-pulse rounded-lg"></div>
             ))}
           </div>
         ) : items.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map((item) => (
               <Link 
-                to={`/item/${item.type}/${item.id}`} // Simplified route
+                to={`/item/${item.type}/${item.id}`}
                 key={`${item.type}-${item.id}`} 
-                className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group flex flex-col h-full"
+                className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition group flex flex-col"
               >
-                <div className="relative h-48 overflow-hidden bg-gray-100">
-                  {/* IMPROVEMENT: Fallback for broken/missing images */}
+                <div className="relative h-44 bg-gray-100 overflow-hidden">
                   <img 
-  loading="lazy"
-  src={item.image ? `http://localhost:5000${item.image}` : "https://placehold.co/400x300?text=No+Image"} 
-  alt={item.item_name} 
-  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-  onError={(e) => {
-    // If the server image is missing or the placeholder fails, use this final fallback
-    e.target.onerror = null; 
-    e.target.src = "https://placehold.co/400x300?text=Image+Not+Found";
-  }}
-/>
-                  <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-black uppercase shadow-sm ${
-                    item.type === 'lost' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                    loading="lazy"
+                    src={item.image ? `http://localhost:5000${item.image}` : "https://placehold.co/400x300?text=No+Image"} 
+                    alt={item.item_name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                    onError={(e) => {
+                      e.target.onerror = null; 
+                      e.target.src = "https://placehold.co/400x300?text=Image+Not+Found";
+                    }}
+                  />
+
+                  <span className={`absolute top-3 right-3 px-2 py-1 text-[10px] font-medium uppercase rounded ${
+                    item.type === 'lost'
+                      ? 'bg-gray-800 text-white'
+                      : 'bg-gray-200 text-gray-700'
                   }`}>
                     {item.type}
                   </span>
                 </div>
                 
-                <div className="p-5 flex flex-col flex-grow">
+                <div className="p-4 flex flex-col flex-grow">
                   <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-bold text-gray-800 line-clamp-1">{item.item_name}</h3>
-                    <span className="text-[10px] font-bold bg-gray-100 px-2 py-1 rounded uppercase text-gray-500">
-                       {item.category}
+                    <h3 className="text-base font-semibold text-gray-800 line-clamp-1">
+                      {item.item_name}
+                    </h3>
+                    <span className="text-[10px] px-2 py-0.5 border border-gray-200 rounded text-gray-500 uppercase">
+                      {item.category}
                     </span>
                   </div>
                   
-                  <p className="text-gray-500 text-sm mt-2 flex items-center gap-1">
+                  <p className="text-gray-500 text-xs mt-2">
                     📍 {item.location}
                   </p>
 
-                  <div className="mt-auto pt-4 flex justify-between items-center border-t border-gray-50">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">
+                  <div className="mt-auto pt-3 flex justify-between items-center text-xs text-gray-400">
+                    <span>
                       {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
-                    <span  className="text-[#3D7D24] font-bold text-sm group-hover:translate-x-1 transition-transform">
-                      Details →
+                    <span className="text-gray-600 group-hover:translate-x-1 transition-transform">
+                      View
                     </span>
                   </div>
                 </div>
@@ -118,9 +146,10 @@ function Home() {
             ))}
           </div>
         ) : (
-          /* Empty State */
-          <div className="text-center py-10 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-400 font-medium">No recent reports found.</p>
+          <div className="text-center py-16 border border-dashed border-gray-200 rounded-lg bg-white">
+            <p className="text-gray-400 text-sm">
+              No recent reports available
+            </p>
           </div>
         )}
       </div>

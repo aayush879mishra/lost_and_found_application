@@ -8,9 +8,7 @@ function ReportLost() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
+    if (!token) navigate("/login");
   }, [navigate]);
 
   const [loading, setLoading] = useState(false);
@@ -22,13 +20,13 @@ function ReportLost() {
     date: "",
     latitude: null,
     longitude: null,
-    phone: "" 
+    phone: "",
   });
+
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
   const handleChange = (e) => {
-    // Logic to ensure phone only accepts numbers
     if (e.target.name === "phone") {
       const value = e.target.value.replace(/\D/g, "");
       setFormData({ ...formData, phone: value });
@@ -57,178 +55,166 @@ function ReportLost() {
     e.preventDefault();
 
     if (!formData.latitude || !formData.longitude) {
-      alert("Please select the last seen location on the map.");
+      alert("Please select location on map.");
       return;
     }
 
     setLoading(true);
 
     const data = new FormData();
-    data.append("type", "lost");
-    data.append("item_name", formData.item_name);
-    data.append("category", formData.category);
-    data.append("location", formData.location);
-    data.append("description", formData.description);
-    data.append("date", formData.date);
-    data.append("latitude", formData.latitude);
-    data.append("longitude", formData.longitude);
-    data.append("phone", formData.phone); 
+    Object.entries({ ...formData, type: "lost" }).forEach(([key, value]) => {
+      data.append(key, value);
+    });
 
     if (image) data.append("image", image);
 
     try {
       const token = localStorage.getItem("token");
       await axios.post("http://localhost:5000/api/items/post", data, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data" 
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-      alert("Lost item reported successfully!");
+      alert("Report submitted successfully.");
       navigate("/");
     } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Failed to report item. Please try again.");
+      alert(err.response?.data?.message || "Submission failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8EDEB] py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="mb-6 text-gray-500 font-bold hover:text-gray-800 transition flex items-center gap-2"
+    <div className="min-h-screen bg-[#F8EDEB] py-12 px-4">
+      <div className="max-w-3xl mx-auto">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-6 text-sm font-medium text-gray-500 hover:text-gray-800 transition"
         >
-          ← Go Back
+          ← Back
         </button>
 
-        <div className="bg-white rounded-[2.5rem] shadow-xl p-8 border border-white">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-2 h-8 bg-[#FF6B6B] rounded-full"></div>
-            <h2 className="text-3xl font-black text-gray-800 tracking-tight">Report Lost Item</h2>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-800">
+              Report Lost Item
+            </h2>
+            <p className="text-gray-500 text-sm mt-1">
+              Provide accurate details to increase the chance of recovery.
+            </p>
           </div>
-          <p className="text-gray-500 mb-8 font-medium">Provide as much detail as possible to help find your item.</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Item Name</label>
-              <input 
-                type="text" 
-                name="item_name" 
-                required 
-                onChange={handleChange} 
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-red-400 outline-none transition-all font-medium" 
-                placeholder="e.g. iPhone 13 Pro" 
+              <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+              <input
+                type="text"
+                name="item_name"
+                required
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Category</label>
-                <select 
-                  name="category" 
-                  required 
-                  onChange={handleChange} 
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none cursor-pointer font-medium"
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  name="category"
+                  required
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
                 >
-                  <option value="">Select Category</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Pets">Pets</option>
-                  <option value="Documents">Documents</option>
-                  <option value="Wallets/Bags">Wallets/Bags</option>
-                  <option value="Others">Others</option>
+                  <option value="">Select</option>
+                  <option>Electronics</option>
+                  <option>Pets</option>
+                  <option>Documents</option>
+                  <option>Wallets/Bags</option>
+                  <option>Others</option>
                 </select>
               </div>
+
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Date Lost</label>
-                <input 
-                  type="date" 
-                  name="date" 
-                  required 
-                  onChange={handleChange} 
-                  className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-medium" 
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date Lost</label>
+                <input
+                  type="date"
+                  name="date"
+                  required
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
                 />
               </div>
             </div>
 
-            {/* WHATSAPP NUMBER SECTION */}
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">WhatsApp Number (with Country Code)</label>
-              <input 
-                type="tel" 
-                name="phone" 
-                required 
+              <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number</label>
+              <input
+                type="tel"
+                name="phone"
+                required
                 value={formData.phone}
-                onChange={handleChange} 
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-red-400 outline-none transition-all font-medium" 
-                placeholder="e.g. 9779841234567" 
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
+                placeholder="977XXXXXXXXXX"
               />
-              <p className="text-[12px] text-red-400 mt-1 ml-1 italic font-medium uppercase tracking-tighter">
-                * Include country code without the '+' sign for direct messaging.
-              </p>
-            </div>
-
-            {/* MAP SECTION */}
-            <div className="space-y-3">
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pin Last Seen Location</label>
-              <MapPicker setLocation={handleLocationSelect} />
-              <p className="text-[10px] text-gray-400 italic px-1 font-medium uppercase tracking-tighter">
-                Click the map to mark the exact spot where you last had the item.
-              </p>
+              <p className="text-[12px] text-red-300 mt-1 ml-1 italic font-medium uppercase tracking-tighter"> * Include country code without the '+' sign for direct messaging. </p>
             </div>
 
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Location Name (Text)</label>
-              <input 
-                type="text" 
-                name="location" 
-                required 
-                onChange={handleChange} 
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-medium" 
-                placeholder="e.g. Central Park, near the fountain" 
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pin Location</label>
+              <div className="rounded-xl overflow-hidden border border-gray-300">
+                <MapPicker setLocation={handleLocationSelect} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Location Description</label>
+              <input
+                type="text"
+                name="location"
+                required
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Description</label>
-              <textarea 
-                name="description" 
-                rows="3" 
-                onChange={handleChange} 
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-medium" 
-                placeholder="Unique marks, specific colors, or wallpaper description..."
-              ></textarea>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Item Description</label>
+              <textarea
+                name="description"
+                rows="3"
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
+              />
             </div>
 
-            <div className="bg-red-50 p-6 rounded-[2rem] border border-red-100">
-              <label className="block text-xs font-black text-red-700 uppercase tracking-widest mb-3 ml-1">Upload Image (Optional)</label>
-              
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Upload Image</label>
+
               {imagePreview && (
-                <div className="mb-4 relative inline-block">
-                  <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-2xl shadow-md border-2 border-white" />
-                  <button 
-                    type="button" 
-                    onClick={() => {setImage(null); setImagePreview(null);}}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-600 transition shadow-lg"
-                  >✕</button>
+                <div className="mb-4">
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                  />
                 </div>
               )}
 
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageChange} 
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-[#FF6B6B] file:text-white hover:file:bg-[#ff5252] cursor-pointer" 
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white hover:file:bg-black"
               />
             </div>
 
-            <button 
-              disabled={loading} 
-              className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-slate-800 transition-all shadow-xl active:scale-95 disabled:bg-gray-400"
+            <button
+              disabled={loading}
+              className="w-full bg-gray-900 text-white py-3 rounded-lg font-medium hover:bg-black transition active:scale-[0.98] disabled:bg-gray-400"
             >
-              {loading ? "Posting Report..." : "Submit Lost Report"}
+              {loading ? "Submitting..." : "Submit Report"}
             </button>
           </form>
         </div>
