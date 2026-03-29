@@ -43,7 +43,7 @@ const protect = async (req, res, next) => {
   }
 };
 
-// 1️⃣ ADD THE ADMIN MIDDLEWARE BACK
+// ADMIN MIDDLEWARE
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
@@ -52,5 +52,4 @@ const admin = (req, res, next) => {
   }
 };
 
-// 2️⃣ EXPORT BOTH (This fixes the TypeError in routes)
 module.exports = { protect, admin };

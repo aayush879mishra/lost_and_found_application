@@ -6,7 +6,7 @@ import mainImg from "../assets/myphoto.jpg";
 function Home() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true); // loading state
 
   // Fetch the latest items
   useEffect(() => {
@@ -24,7 +24,7 @@ function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#F8EDEB] to-[#E9F7D8]">
       
-      {/* HERO SECTION - Kept exactly as your original */}
+      {/* HERO SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-center px-8 md:px-20 py-16 gap-10">
         <div className="w-full md:w-1/2 space-y-6">
           <h1 className="text-5xl md:text-7xl font-bold leading-tight text-gray-900">

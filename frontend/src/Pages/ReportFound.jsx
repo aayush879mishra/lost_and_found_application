@@ -14,13 +14,13 @@ function ReportFound() {
     date: "",
     latitude: null,
     longitude: null,
-    phone: "" // 1. Added phone to state
+    phone: "" 
   });
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
   const handleChange = (e) => {
-    // 2. Logic to ensure phone only accepts numbers
+    // Logic to ensure phone only accepts numbers
     if (e.target.name === "phone") {
       const value = e.target.value.replace(/\D/g, "");
       setFormData({ ...formData, phone: value });
@@ -64,7 +64,7 @@ function ReportFound() {
     data.append("date", formData.date);
     data.append("latitude", formData.latitude);
     data.append("longitude", formData.longitude);
-    data.append("phone", formData.phone); // 3. Append phone to FormData
+    data.append("phone", formData.phone); 
     
     if (image) data.append("image", image);
 

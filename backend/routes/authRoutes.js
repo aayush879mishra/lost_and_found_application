@@ -9,7 +9,7 @@ router.post("/register", authController.register);
 router.post("/login", authController.login);
 router.post("/google-login", authController.googleLogin);
 
-// Protected Routes (Uses 'protect' instead of 'auth')
+// Protected Routes
 router.get("/me", protect, authController.getMe);
 router.put("/update-profile", protect, upload.single("profileImage"), authController.updateProfile);
 router.put("/change-password", protect, authController.changePassword);

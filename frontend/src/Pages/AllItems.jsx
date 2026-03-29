@@ -27,7 +27,7 @@ function AllItems() {
 
   const observerRef = useRef(null);
 
-  // 🔄 Fetch items from backend
+  // Fetch items from backend
   const fetchItems = async (reset = false, isIgnore = () => false) => {
     // Basic guards: Don't fetch if loading, or if we've reached the end
     if (loading || (!hasMore && !reset)) return;
@@ -45,7 +45,7 @@ function AllItems() {
         },
       });
 
-      // 🛑 STOPS DUPLICATES: If this effect was cleaned up by React, don't update state
+      // STOPS DUPLICATES: If this effect was cleaned up by React, don't update state
       if (isIgnore()) return;
 
       const newData = res.data;
@@ -60,7 +60,7 @@ function AllItems() {
     }
   };
 
-  // 🔄 Handle Filters & Initial Mount (Single Entry Point)
+  // Handle Filters & Initial Mount (Single Entry Point)
   useEffect(() => {
     let ignore = false; // Flag to prevent Strict Mode double-firing
 
@@ -76,7 +76,7 @@ function AllItems() {
     };
   }, [category, type, search]);
 
-  // 🔄 Infinite Scroll Observer
+  // Infinite Scroll Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -146,7 +146,7 @@ function AllItems() {
       <div className="max-w-7xl mx-auto px-8 py-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => (
           <Link
-            key={`${item.type}-${item.id}`} // ✅ UNIQUE COMPOSITE KEY
+            key={`${item.type}-${item.id}`} // UNIQUE COMPOSITE KEY
             to={`/item/${item.type}/${item.id}`}
             className="bg-white rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
           >

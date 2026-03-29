@@ -12,7 +12,7 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  /* ================= NORMAL SIGNUP ================= */
+  /* NORMAL SIGNUP  */
   const handleSignup = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -52,7 +52,7 @@ function Signup() {
     }
   };
 
-  /* ================= GOOGLE SIGNUP ================= */
+  /* GOOGLE SIGNUP */
   const handleGoogleSignup = async (credentialResponse) => {
     try {
       if (!credentialResponse?.credential) {

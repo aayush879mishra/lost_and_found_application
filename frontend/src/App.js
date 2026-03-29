@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 
 // Components
 import Navbar from "./Components/Navbar";
-import ProtectedRoute from "./Components/ProtectedRoutes"; // Your simplified component
+import ProtectedRoute from "./Components/ProtectedRoutes"; 
 
 // Pages
 import Home from "./Pages/Home";

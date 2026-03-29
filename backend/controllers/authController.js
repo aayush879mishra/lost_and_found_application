@@ -109,7 +109,7 @@ exports.googleLogin = async (req, res) => {
       
       user = { user_id: result.insertId, full_name: name, email: email, role: "user" };
 
-      // --- TRIGGER EMAIL FOR NEW GOOGLE USER ---
+      // TRIGGER EMAIL FOR NEW GOOGLE USER 
       sendWelcomeEmail(email, name).catch(err => 
         console.error("Background Google Welcome Email Error:", err)
       );

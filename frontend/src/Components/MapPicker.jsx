@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// --- Leaflet Marker Fix ---
+// Leaflet Marker Fix 
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -14,7 +14,6 @@ const DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-// --------------------------
 
 function MapPicker({ setLocation }) {
   // Default center (Example: Kathmandu, Nepal)
