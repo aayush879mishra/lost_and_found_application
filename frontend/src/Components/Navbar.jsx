@@ -1,71 +1,100 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { LogOut, User, LayoutDashboard } from "lucide-react";
 
 function Navbar({ user, setUser }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
-    localStorage.clear(); // Clears token and user at once
+    localStorage.clear();
     setUser(null);
     navigate("/login");
   };
 
+  // Helper to highlight active link
+  const isActive = (path) => location.pathname === path;
+
   return (
-    <nav className="bg-white px-8 py-4 flex justify-between items-center shadow-md sticky top-0 z-[1001]">
-      {/* LOGO */}
-      <h2 className="m-0">
-        <Link to="/" className="text-2xl font-bold text-[#FF6B6B] no-underline tracking-tighter">
+    <nav className="bg-white/80 backdrop-blur-md px-8 py-5 flex justify-between items-center border-b border-gray-100 sticky top-0 z-[1001]">
+      
+      {/* BRAND LOGO */}
+      <div className="flex items-center gap-8">
+        <Link to="/" className="text-2xl font-black text-[#4F46E5] no-underline tracking-tighter hover:opacity-80 transition">
           LostLink
         </Link>
-      </h2>
 
-      {/* CENTER MENU */}
-      <div className="hidden md:flex gap-4">
-        <Link to="/" className="text-black no-underline border border-gray-300 px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-50 transition">
-          Home
-        </Link>
-        <Link to="/all-items" className="text-black no-underline border border-gray-300 px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-50 transition">
-          All Items
-        </Link>
-        <Link to="/report-lost" className="text-black no-underline border border-gray-300 px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-50 transition">
-          Report Lost
-        </Link>
-        <Link to="/report-found" className="text-black no-underline border border-gray-300 px-5 py-2 rounded-full text-sm font-semibold hover:bg-gray-50 transition">
-          Report Found
-        </Link>
-        
-        {user?.role === "admin" && (
-          <Link to="/admin" className="no-underline bg-slate-900 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-slate-800 transition">
-            Admin Dashboard
-          </Link>
-        )}
+        {/* CENTER MENU - Typography Driven */}
+        <div className="hidden md:flex items-center gap-8">
+          {[
+            { name: "Browse Items", path: "/all-items" },
+            { name: "Report Lost", path: "/report-lost" },
+            { name: "Report Found", path: "/report-found" },
+          ].map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`text-sm font-bold no-underline transition-all ${
+                isActive(item.path)
+                  ? "text-[#4F46E5] relative after:content-[''] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-0.5 after:bg-[#4F46E5]"
+                  : "text-[#6B7280] hover:text-[#111827]"
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* AUTH BUTTONS */}
-      <div className="flex gap-3 items-center">
+      {/* AUTH ACTIONS */}
+      <div className="flex gap-4 items-center">
         {!user ? (
           <>
-            <Link to="/login" className="text-black no-underline border border-gray-300 px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-50 transition">
+            <Link 
+              to="/login" 
+              className="text-[#111827] no-underline text-sm font-black hover:opacity-70 transition px-4"
+            >
               Login
             </Link>
-            <Link to="/signup" className="no-underline bg-[#FF6B6B] text-white px-6 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-sm">
+            <Link 
+              to="/signup" 
+              className="no-underline bg-[#4F46E5] text-white px-7 py-3 rounded-2xl text-sm font-black hover:bg-[#4338CA] transition shadow-[0_10px_20px_rgba(79,70,229,0.15)] active:scale-95"
+            >
               Sign Up
             </Link>
           </>
         ) : (
-          <div className="flex items-center gap-4">
-            {/* User Profile Link */}
-            <Link to="/profile" className="flex items-center gap-2 text-gray-700 no-underline text-sm font-bold hover:text-[#FF6B6B] transition">
-              <span className="bg-gray-100 w-8 h-8 flex items-center justify-center rounded-full text-[10px]">👤</span>
-              Hi, {user.full_name?.split(' ')[0]}
+          <div className="flex items-center gap-6">
+            {user?.role === "admin" && (
+              <Link 
+                to="/admin" 
+                className="flex items-center gap-2 text-[#111827] no-underline text-sm font-black hover:text-[#4F46E5] transition"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Link>
+            )}
+
+            {/* User Profile */}
+            <Link 
+              to="/profile" 
+              className="flex items-center gap-3 text-[#111827] no-underline text-sm font-black hover:text-[#4F46E5] transition group"
+            >
+              <div className="bg-[#F3F4F6] w-10 h-10 flex items-center justify-center rounded-2xl group-hover:bg-[#EEF2FF] transition">
+                <User className="w-5 h-5 text-[#6B7280] group-hover:text-[#4F46E5]" />
+              </div>
+              <span className="hidden sm:inline">Hi, {user.full_name?.split(' ')[0]}</span>
             </Link>
             
-            {/* Sign Out */}
+            <div className="h-6 w-[1px] bg-gray-200 mx-1"></div>
+
+            {/* Logout */}
             <button 
               onClick={handleLogout} 
-              className="border border-[#FF6B6B] text-[#FF6B6B] bg-transparent px-5 py-2 rounded-full text-sm font-semibold cursor-pointer hover:bg-[#FF6B6B] hover:text-white transition"
+              className="flex items-center gap-2 text-[#6B7280] bg-transparent border-none p-0 text-sm font-black cursor-pointer hover:text-[#E11D48] transition"
             >
-              Sign Out
+              <LogOut className="w-4 h-4" />
+              Logout
             </button>
           </div>
         )}

@@ -6,10 +6,13 @@ import {
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 import 'leaflet/dist/leaflet.css';
+import { Toaster } from 'react-hot-toast';
 
 // Components
 import Navbar from "./Components/Navbar";
 import ProtectedRoute from "./Components/ProtectedRoutes"; 
+import VerifyOTP from './Components/VerifyOTP';
+import ForgotPassword from './Components/ForgotPassword';
 
 // Pages
 import Home from "./Pages/Home";
@@ -47,6 +50,9 @@ function App() {
   }
 
   return (
+    <>
+    <Toaster position="top-center" reverseOrder={false} />
+
     <Router>
       {/* Navbar stays at the top and reacts to user state */}
       <Navbar user={user} setUser={setUser} />
@@ -58,6 +64,12 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/signup" element={<Signup />} />
+
+          {/* New OTP Route */}
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          {/* --- ITEM ROUTES --- */}
           <Route path="/item/:type/:id" element={<ItemDetail user={user} />} />
           <Route path="/all-items" element={<AllItems />} />
 
@@ -114,6 +126,7 @@ function App() {
         </Routes>
       </main>
     </Router>
+    </>
   );
 }
 

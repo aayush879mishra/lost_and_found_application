@@ -14,4 +14,9 @@ router.get("/me", protect, authController.getMe);
 router.put("/update-profile", protect, upload.single("profileImage"), authController.updateProfile);
 router.put("/change-password", protect, authController.changePassword);
 
+router.post('/verify-otp', authController.verifySignupOTP);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+router.post('/resend-otp', authController.resendOTP);
+
 module.exports = router;

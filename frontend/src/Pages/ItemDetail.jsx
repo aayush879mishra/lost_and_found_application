@@ -2,6 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import MapView from "../Components/MapView";
+import { 
+  ArrowLeft, 
+  MapPin, 
+  Clock, 
+  ShieldAlert, 
+  MessageCircle, 
+  Tag, 
+  Palette, 
+  CheckCircle2 
+} from "lucide-react";
 
 function ItemDetail({ user }) {
   const { type, id } = useParams();
@@ -25,22 +35,20 @@ function ItemDetail({ user }) {
   }, [type, id]);
 
   const handleContact = async () => {
-  if (!user) {
-    alert("Please login to contact the owner.");
-    navigate("/login");
-    return;
-  }
+    if (!user) {
+      alert("Please login to contact the owner.");
+      navigate("/login");
+      return;
+    }
 
-  const cleanPhone = item.phone ? item.phone.replace(/\D/g, "") : "";
+    const cleanPhone = item.phone ? item.phone.replace(/\D/g, "") : "";
+    if (!cleanPhone) {
+      alert("This user has not provided a valid contact number.");
+      return;
+    }
 
-  if (!cleanPhone) {
-    alert("This user has not provided a valid contact number.");
-    return;
-  }
-
-  // Trigger Email Notification
-  try {
-    // 1. Trigger the email notification
+    setSending(true);
+    try {
       await axios.post("http://localhost:5000/api/items/notify-connection", {
         ownerEmail: item.email,
         ownerName: item.full_name,
@@ -49,153 +57,174 @@ function ItemDetail({ user }) {
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
-  } catch (err) {
-    console.error("Notification failed to trigger:", err);
-  }
-
- finally {
-      // 2. Draft message and open WhatsApp
+    } catch (err) {
+      console.error("Notification failed:", err);
+    } finally {
       const message = `Hi ${item.full_name || "there"}, I saw your report on LostLink for the ${item.type} item: "${item.item_name}". I'd like to discuss this with you.`;
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      
       window.open(whatsappUrl, "_blank");
-      
-      // Reset loading state after a small delay so the transition feels smooth
       setTimeout(() => setSending(false), 1000);
     }
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8EDEB]">
-      <div className="animate-pulse font-black text-gray-400 text-2xl uppercase tracking-widest">Loading Details...</div>
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="w-12 h-12 border-4 border-gray-100 border-t-[#4F46E5] rounded-full animate-spin"></div>
     </div>
   );
 
   if (!item) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8EDEB]">
-      <div className="text-center">
-        <h2 className="text-4xl font-black text-gray-800 mb-4">Item Not Found</h2>
-        <button onClick={() => navigate("/")} className="text-[#FF6B6B] font-bold underline">Return Home</button>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white p-6">
+      <h2 className="text-4xl font-extrabold text-[#111827] mb-4">Item Not Found</h2>
+      <button onClick={() => navigate("/")} className="text-[#4F46E5] font-bold hover:underline flex items-center gap-2">
+        <ArrowLeft className="w-4 h-4" /> Return to Directory
+      </button>
     </div>
   );
 
   return (
-  <div className="min-h-screen bg-[#F8EDEB] py-12 px-4">
-    <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-[#F9FAFB] pb-24 font-sans">
+      {/* HEADER NAVIGATION */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 text-sm font-bold text-[#6B7280] hover:text-[#111827] transition-colors uppercase tracking-widest"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to browse
+        </button>
+      </div>
 
-      <button 
-        onClick={() => navigate(-1)} 
-        className="mb-6 text-sm text-gray-600 hover:text-gray-800 transition flex items-center gap-2"
-      >
-        ← Back
-      </button>
-
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col md:flex-row">
-        
-        {/* IMAGE */}
-        <div className="md:w-1/2 bg-gray-100 relative">
-          <img 
-            src={`http://localhost:5000${item.image}`} 
-            alt={item.item_name} 
-            className="w-full h-full object-cover min-h-[420px]"
-          />
-
-          <span className={`absolute top-4 left-4 px-3 py-1 text-xs font-medium uppercase rounded ${
-            item.type === 'lost'
-              ? 'bg-gray-900 text-white'
-              : 'bg-gray-200 text-gray-700'
-          }`}>
-            {item.type}
-          </span>
+      <div className="max-w-7xl mx-auto px-8">
+        {/* HEADER SECTION */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+              item.type === 'lost' ? 'bg-[#FFF1F2] text-[#E11D48]' : 'bg-[#EEF2FF] text-[#4F46E5]'
+            }`}>
+              {item.type}
+            </span>
+            <span className="flex items-center gap-1.5 text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
+              <Clock className="w-3.5 h-3.5" /> Reported {new Date(item.created_at).toLocaleDateString()}
+            </span>
+          </div>
+          <h1 className="text-5xl font-black text-[#111827] tracking-tight mb-4 leading-tight">
+            {item.item_name}
+          </h1>
+          <p className="flex items-center gap-2 text-[#6B7280] font-semibold">
+            <MapPin className="w-5 h-5 text-[#4F46E5]" /> {item.location}
+          </p>
         </div>
 
-        {/* CONTENT */}
-        <div className="md:w-1/2 p-8 md:p-12 flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           
-          <div className="flex-grow">
-
-            {/* meta */}
-            <div className="flex justify-between items-center mb-4 text-xs text-gray-400">
-              <span className="text-gray-700">
-                {new Date(item.created_at).toLocaleDateString()}
-              </span>
-              <span className="border border-gray-200 px-2 py-0.5 rounded text-gray-700 uppercase">
-                {item.category}
-              </span>
+          {/* LEFT COLUMN: VISUALS & CONTENT */}
+          <div className="lg:col-span-2 space-y-12">
+            
+            {/* MAIN IMAGE */}
+            <div className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-white">
+              <img 
+                src={`http://localhost:5000${item.image}`} 
+                alt={item.item_name} 
+                className="w-full h-auto max-h-[600px] object-cover"
+              />
             </div>
 
-            {/* title */}
-            <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mb-3 leading-tight">
-              {item.item_name}
-            </h1>
-            
-            {/* location */}
-            <p className="text-gray-600 text-sm mb-6 flex items-center gap-2">
-              📍 {item.location}
-            </p>
+            {/* DESCRIPTION BOX */}
+            <div className="bg-white rounded-[2.5rem] p-10 border border-gray-50 shadow-sm">
+              <h3 className="text-2xl font-extrabold text-[#111827] mb-6">Description</h3>
+              <p className="text-[#4B5563] text-lg leading-relaxed mb-10 whitespace-pre-line">
+                {item.description || "No detailed description provided for this item."}
+              </p>
 
-            {/* MAP */}
-            {item.latitude && item.longitude ? (
-              <div className="h-56 w-full mb-8 rounded-lg overflow-hidden border border-gray-200">
-                <MapView 
-                  lat={item.latitude} 
-                  lng={item.longitude} 
-                  itemName={item.item_name} 
-                />
+              <div className="grid grid-cols-2 gap-8 border-t border-gray-50 pt-10">
+                <div>
+                  <p className="text-[10px] font-black text-[#9CA3AF] uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Tag className="w-3 h-3" /> Item Category
+                  </p>
+                  <p className="text-[#1F2937] font-bold text-lg">{item.category}</p>
+                </div>
+                {/* <div>
+                  <p className="text-[10px] font-black text-[#9CA3AF] uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3" /> Found Status
+                  </p>
+                  <p className="text-[#1F2937] font-bold text-lg">
+                    {item.status === 'resolved' ? 'Recovered' : 'Not yet found'}
+                  </p>
+                </div> */}
               </div>
-            ) : (
-              <div className="h-20 flex items-center justify-center bg-gray-50 rounded-lg mb-8 border border-dashed border-gray-200">
-                <p className="text-gray-400 text-xs">
-                  No location provided
-                </p>
+            </div>
+
+            {/* MAP SECTION */}
+            {item.latitude && item.longitude && (
+              <div className="bg-white rounded-[2.5rem] p-10 border border-gray-50 shadow-sm">
+                <h3 className="text-2xl font-extrabold text-[#111827] mb-6">Last Known Location</h3>
+                <div className="h-[400px] rounded-3xl overflow-hidden border border-gray-100">
+                  <MapView 
+                    lat={item.latitude} 
+                    lng={item.longitude} 
+                    itemName={item.item_name} 
+                  />
+                </div>
               </div>
             )}
+          </div>
 
-            {/* description */}
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                Description
-              </h3>
-              <p className="text-gray-700  leading-relaxed">
-                {item.description || "No description provided."}
+          {/* RIGHT COLUMN: CONTACT & SAFETY */}
+          <div className="space-y-6">
+            
+            {/* CONTACT CARD */}
+            <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)]  top-8">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-14 h-14 bg-[#111827] rounded-2xl flex items-center justify-center text-xl font-black text-white">
+                  {item.full_name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="text-lg font-extrabold text-[#111827] leading-tight">{item.full_name}</h4>
+                  <p className="text-sm font-bold text-[#9CA3AF] mt-0.5">Verified Member</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleContact}
+                disabled={sending}
+                className={`w-full py-5 rounded-2xl text-base font-black flex items-center justify-center gap-3 transition-all transform active:scale-95 ${
+                  sending
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-[#22C55E] text-white hover:bg-[#16A34A] shadow-[0_10px_20px_rgba(34,197,94,0.2)]"
+                }`}
+              >
+                <MessageCircle className="w-5 h-5" />
+                {sending ? "Connecting..." : "Contact via WhatsApp"}
+              </button>
+
+              <p className="mt-6 text-center text-xs font-bold text-[#9CA3AF] leading-relaxed">
+                Your safety is our priority. Always meet in a public, well-lit area when exchanging items.
               </p>
             </div>
-          </div>
 
-          {/* CONTACT */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gray-900 text-white rounded-lg flex items-center justify-center text-sm font-semibold">
-                {item.full_name?.charAt(0).toUpperCase()}
+            {/* SAFETY TIPS CARD */}
+            <div className="bg-[#FFF1F2] rounded-[2rem] p-8 border border-[#FFE4E6]">
+              <div className="flex items-center gap-2 mb-4 text-[#E11D48]">
+                <ShieldAlert className="w-5 h-5" />
+                <h4 className="font-black uppercase tracking-widest text-xs">Safety & Trust</h4>
               </div>
-              <div>
-                <p className="text-xs text-gray-400">Reported by</p>
-                <p className="text-sm font-medium text-gray-800">
-                  {item.full_name}
-                </p>
-              </div>
+              <ul className="space-y-4">
+                <li className="flex gap-3 text-xs font-bold text-[#9F1239] leading-relaxed">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] mt-1 shrink-0" />
+                  Never send money for shipping before verifying the item's existence.
+                </li>
+                <li className="flex gap-3 text-xs font-bold text-[#9F1239] leading-relaxed">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] mt-1 shrink-0" />
+                  Ask for a specific detail or photo not shown in the original post.
+                </li>
+              </ul>
             </div>
-
-            <button 
-              onClick={handleContact}
-              disabled={sending}
-              className={`w-full py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition ${
-                sending
-                  ? "bg-gray-300 text-white cursor-not-allowed"
-                  : "bg-green-600 text-white hover:bg-green-800"
-              }`}
-            >
-              {sending ? "Connecting..." : "Contact via WhatsApp"}
-            </button>
-
           </div>
+
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
 
 export default ItemDetail;

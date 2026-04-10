@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { 
+  FileText, 
+  MapPin, 
+  Camera, 
+  MessageCircle, 
+  UploadCloud, 
+  ChevronLeft,
+  ChevronDown
+} from "lucide-react"; 
 import MapPicker from "../Components/MapPicker";
 
 function ReportLost() {
@@ -27,11 +37,11 @@ function ReportLost() {
   const [imagePreview, setImagePreview] = useState(null);
 
   const handleChange = (e) => {
-    if (e.target.name === "phone") {
-      const value = e.target.value.replace(/\D/g, "");
-      setFormData({ ...formData, phone: value });
+    const { name, value } = e.target;
+    if (name === "phone") {
+      setFormData({ ...formData, phone: value.replace(/\D/g, "") });
     } else {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
+      setFormData({ ...formData, [name]: value });
     }
   };
 
@@ -53,19 +63,17 @@ function ReportLost() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formData.latitude || !formData.longitude) {
-      alert("Please select location on map.");
+      toast.error("Please pin the location on the map.");
       return;
     }
 
     setLoading(true);
-
     const data = new FormData();
+    // Setting type to 'lost' automatically
     Object.entries({ ...formData, type: "lost" }).forEach(([key, value]) => {
       data.append(key, value);
     });
-
     if (image) data.append("image", image);
 
     try {
@@ -76,148 +84,203 @@ function ReportLost() {
           "Content-Type": "multipart/form-data",
         },
       });
-      alert("Report submitted successfully.");
+      toast.success("Lost report submitted successfully!");
       navigate("/");
     } catch (err) {
-      alert(err.response?.data?.message || "Submission failed.");
+      toast.error(err.response?.data?.message || "Submission failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8EDEB] py-12 px-4">
+    <div className="min-h-screen bg-[#F9FAFB] py-16 px-4 antialiased font-sans">
       <div className="max-w-3xl mx-auto">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 text-sm font-medium text-gray-500 hover:text-gray-800 transition"
-        >
-          ← Back
-        </button>
+        
+        {/* HEADER SECTION */}
+        <div className="text-center mb-12">
+          <h1 className="text-[42px] font-[800] text-[#111827] mb-3 tracking-[-0.03em] leading-tight">
+            Report a Lost Item
+          </h1>
+          <p className="text-[#6B7280] text-lg font-medium tracking-tight">
+            Help the community find what you've lost by being as descriptive as possible.
+          </p>
+        </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              Report Lost Item
-            </h2>
-            <p className="text-gray-500 text-sm mt-1">
-              Provide accurate details to increase the chance of recovery.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
-              <input
-                type="text"
-                name="item_name"
-                required
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition"
-              />
+        <form onSubmit={handleSubmit} className="space-y-12">
+          
+          {/* SECTION 1: ITEM DETAILS */}
+          <div className="bg-white rounded-[2.5rem] p-10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#F3F4F6]">
+            <div className="flex items-center mb-10">
+              <div className="p-3 bg-[#EEF2FF] rounded-2xl mr-4">
+                <FileText className="w-6 h-6 text-[#4F46E5]" />
+              </div>
+              <h3 className="text-[22px] font-bold text-[#1F2937] tracking-tight">Item Details</h3>
             </div>
+            
+            <div className="space-y-8">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="relative">
+                  <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Category</label>
+                  <div className="relative">
+                    <select
+                      name="category"
+                      required
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none focus:ring-2 focus:ring-[#4F46E5]/10 transition font-medium text-[#1F2937] appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>Select Category</option>
+                      <option value="Electronics">Electronics</option>
+                      <option value="Pets">Pets</option>
+                      <option value="Documents">Documents</option>
+                      <option value="Wallets">Wallets & Bags</option>
+                      <option value="Keys">Keys</option>
+                      <option value="Clothing">Clothing</option>
+                      <option value="Others">Others</option>
+                    </select>
+                    <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#9CA3AF] pointer-events-none" />
+                  </div>
+                </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                <select
-                  name="category"
-                  required
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
-                >
-                  <option value="">Select</option>
-                  <option>Electronics</option>
-                  <option>Pets</option>
-                  <option>Documents</option>
-                  <option>Wallets/Bags</option>
-                  <option>Others</option>
-                </select>
+                <div>
+                  <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Item Title</label>
+                  <input
+                    type="text"
+                    name="item_name"
+                    placeholder="e.g. Blue Nike Backpack"
+                    required
+                    value={formData.item_name}
+                    onChange={handleChange}
+                    className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none focus:ring-2 focus:ring-[#4F46E5]/10 transition placeholder:text-[#9CA3AF] font-medium"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date Lost</label>
+                <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Detailed Description</label>
+                <textarea
+                  name="description"
+                  rows="5"
+                  placeholder="Include distinctive features, brand, color, or specific wear and tear..."
+                  onChange={handleChange}
+                  className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none focus:ring-2 focus:ring-[#4F46E5]/10 transition placeholder:text-[#9CA3AF] resize-none font-medium leading-relaxed"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2: LOCATION */}
+          <div className="bg-white rounded-[2.5rem] p-10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#F3F4F6]">
+            <div className="flex items-center mb-10">
+              <div className="p-3 bg-[#EEF2FF] rounded-2xl mr-4">
+                <MapPin className="w-6 h-6 text-[#4F46E5]" />
+              </div>
+              <h3 className="text-[22px] font-bold text-[#1F2937] tracking-tight">Where did you lose it?</h3>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 mb-8">
+              <div>
+                <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Date of Loss</label>
                 <input
                   type="date"
                   name="date"
                   required
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
+                  className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none font-medium text-[#1F2937] cursor-text"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Location Description</label>
+                <input
+                  type="text"
+                  name="location"
+                  placeholder="e.g. Near the food court"
+                  required
+                  onChange={handleChange}
+                  className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none placeholder:text-[#9CA3AF] font-medium"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number</label>
-              <input
-                type="tel"
-                name="phone"
-                required
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
-                placeholder="977XXXXXXXXXX"
-              />
-              <p className="text-[12px] text-red-300 mt-1 ml-1 italic font-medium uppercase tracking-tighter"> * Include country code without the '+' sign for direct messaging. </p>
+            <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Pin Location on Map</label>
+            <div className="rounded-[1.5rem] overflow-hidden border border-[#E5E7EB] h-80 bg-[#F9FAFB] relative shadow-inner">
+              <MapPicker setLocation={handleLocationSelect} />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pin Location</label>
-              <div className="rounded-xl overflow-hidden border border-gray-300">
-                <MapPicker setLocation={handleLocationSelect} />
+          {/* SECTION 3: MEDIA & CONTACT */}
+          <div className="bg-white rounded-[2.5rem] p-10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#F3F4F6]">
+            <div className="flex items-center mb-10">
+              <div className="p-3 bg-[#EEF2FF] rounded-2xl mr-4">
+                <Camera className="w-6 h-6 text-[#4F46E5]" />
               </div>
+              <h3 className="text-[22px] font-bold text-[#1F2937] tracking-tight">Media & Contact</h3>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Location Description</label>
-              <input
-                type="text"
-                name="location"
-                required
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Item Description</label>
-              <textarea
-                name="description"
-                rows="3"
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-900 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Upload Image</label>
-
-              {imagePreview && (
-                <div className="mb-4">
-                  <img
-                    src={imagePreview}
-                    alt="preview"
-                    className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                  />
-                </div>
-              )}
-
+            <label className="block text-[11px] font-bold text-[#9CA3AF] mb-4 uppercase tracking-[0.15em]">Photos</label>
+            <div className="border-2 border-dashed border-[#D1D5DB] rounded-[2rem] p-10 text-center hover:bg-[#F9FAFB] transition-all relative group cursor-pointer">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white hover:file:bg-black"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               />
+              {imagePreview ? (
+                <div className="relative inline-block">
+                  <img src={imagePreview} alt="Preview" className="mx-auto w-48 h-48 object-cover rounded-[1.5rem] shadow-lg" />
+                  <div className="absolute inset-0 bg-black/20 rounded-[1.5rem] opacity-0 group-hover:opacity-100 transition flex items-center justify-center backdrop-blur-[2px]">
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">Change Photo</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="p-5 bg-[#EEF2FF] rounded-full mb-5">
+                    <UploadCloud className="w-10 h-10 text-[#4F46E5]" />
+                  </div>
+                  <p className="text-lg font-bold text-[#374151] tracking-tight">Click to upload or drag and drop</p>
+                </div>
+              )}
             </div>
 
+            <div className="mt-12">
+              <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Contact Number</label>
+              <div className="flex items-center gap-5">
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="97798xxxxxxxx"
+                  required
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="flex-1 bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none placeholder:text-[#9CA3AF] font-medium"
+                />
+                <div className="p-5 bg-[#DCFCE7] rounded-[1.25rem] border border-[#BBF7D0]">
+                  <MessageCircle className="w-7 h-7 text-[#16A34A]" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="flex items-center justify-between pt-6">
             <button
-              disabled={loading}
-              className="w-full bg-gray-900 text-white py-3 rounded-lg font-medium hover:bg-black transition active:scale-[0.98] disabled:bg-gray-400"
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-[#4F46E5] font-bold hover:text-[#4338CA] transition flex items-center gap-2 group text-lg"
             >
-              {loading ? "Submitting..." : "Submit Report"}
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              Back
             </button>
-          </form>
-        </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-[#4F46E5] text-white px-14 py-5 rounded-[1.5rem] font-bold text-lg shadow-[0_20px_40px_-10px_rgba(79,70,229,0.4)] hover:bg-[#4338CA] transition-all transform hover:-translate-y-1 active:scale-95 disabled:bg-[#9CA3AF] disabled:transform-none"
+            >
+              {loading ? "Posting Report..." : "Post Lost Report"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
