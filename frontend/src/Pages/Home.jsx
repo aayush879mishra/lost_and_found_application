@@ -164,10 +164,10 @@ function Home() {
             <p className="text-[#6B7280] max-w-sm leading-relaxed mb-6">
               The world's most compassionate digital curator for lost items. Bridging distances and restoring memories since 2024.
             </p>
-            <div className="flex gap-4">
+            {/* <div className="flex gap-4">
               <Globe className="w-5 h-5 text-[#9CA3AF] hover:text-[#4F46E5] cursor-pointer" />
               <Mail className="w-5 h-5 text-[#9CA3AF] hover:text-[#4F46E5] cursor-pointer" />
-            </div>
+            </div> */}
           </div>
           <div>
             <h5 className="font-bold text-[#111827] mb-6 uppercase text-xs tracking-widest">Platform</h5>
@@ -179,20 +179,19 @@ function Home() {
             </ul>
           </div>
           <div>
-            <h5 className="font-bold text-[#111827] mb-6 uppercase text-xs tracking-widest">Support</h5>
-            <ul className="space-y-4 text-[#6B7280] font-medium text-sm">
-          <li className="hover:text-[#4F46E5] cursor-pointer">Help Center</li>
-              <li className="hover:text-[#4F46E5] cursor-pointer">Privacy Policy</li>
-              <li className="hover:text-[#4F46E5] cursor-pointer">Terms of Service</li>
-              <li className="hover:text-[#4F46E5] cursor-pointer">Contact Us</li>
-            </ul>
-          </div>
+  <h5 className="font-bold text-[#111827] mb-6 uppercase text-xs tracking-widest">Support</h5>
+  <ul className="space-y-4 text-[#6B7280] font-medium text-sm">
+    <li><Link to="/help" className="hover:text-[#4F46E5] cursor-pointer">Help Center</Link></li>
+    <li><Link to="/privacy" className="hover:text-[#4F46E5] cursor-pointer">Privacy Policy</Link></li>
+    <li><Link to="/terms" className="hover:text-[#4F46E5] cursor-pointer">Terms of Service</Link></li>
+    <li><Link to="/contact" className="hover:text-[#4F46E5] cursor-pointer">Contact Us</Link></li>
+  </ul>
+</div>
         </div>
         <div className="max-w-7xl mx-auto px-8 pt-10 border-t border-gray-50 flex justify-between items-center text-[10px] font-bold text-[#D1D5DB] uppercase tracking-widest">
           <p>© 2026 LOSTLINK CURATOR. ALL RIGHTS RESERVED.</p>
           <div className="flex gap-8">
-            <span className="hover:text-[#9CA3AF] cursor-pointer">Safety Guidelines</span>
-            <span className="hover:text-[#9CA3AF] cursor-pointer">Support</span>
+             <Link to="/terms" className="hover:text-[#9CA3AF] cursor-pointer">Safety Guidelines</Link>
           </div>
         </div>
       </footer>

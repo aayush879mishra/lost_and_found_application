@@ -24,6 +24,10 @@ import Profile from "./Pages/Profile";
 import ItemDetail from "./Pages/ItemDetail";
 import AdminDashboard from "./Pages/AdminDashboard";
 import AllItems from "./Pages/AllItems";
+import Terms from "./Pages/Terms";
+import Privacy from "./Pages/Privacy";
+import Contact from "./Pages/Contact";
+import Help from "./Pages/Help";
 
 function App() {
   // 1. Initialize user from localStorage to prevent logout on refresh
@@ -72,6 +76,12 @@ function App() {
           {/* --- ITEM ROUTES --- */}
           <Route path="/item/:type/:id" element={<ItemDetail user={user} />} />
           <Route path="/all-items" element={<AllItems />} />
+
+
+          <Route path="/terms" element={<Terms />} />
+<Route path="/privacy" element={<Privacy />} />
+<Route path="/contact" element={<Contact />} />
+<Route path="/help" element={<Help />} />
 
           {/* --- PROTECTED USER ROUTES --- */}
           <Route
