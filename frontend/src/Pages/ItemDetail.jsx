@@ -10,8 +10,10 @@ import {
   MessageCircle, 
   Tag, 
   Palette, 
-  CheckCircle2 
+  CheckCircle2, 
+  AlertTriangle
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 function ItemDetail({ user }) {
   const { type, id } = useParams();
@@ -33,6 +35,41 @@ function ItemDetail({ user }) {
     };
     fetchDetails();
   }, [type, id]);
+
+
+  // NEW: Handle Reporting Logic
+  const handleReport = async () => {
+    if (!user) {
+      toast.error("Please login to report posts.");
+      return;
+    }
+
+    const reason = window.prompt("Why are you reporting this post? (Spam, Fake, Inappropriate, etc.)");
+    
+    if (!reason) return;
+    if (reason.length < 5) {
+      toast.error("Please provide a valid reason.");
+      return;
+    }
+
+    const loadingToast = toast.loading("Submitting report...");
+    
+    try {
+      await axios.post("http://localhost:5000/api/items/report", {
+        item_id: id,
+        item_type: type,
+        reason: reason
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      toast.success("Post reported. Thank you for keeping LostLink safe!", { id: loadingToast }, {duration: 6000});
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to submit report";
+      toast.error(errorMsg, { id: loadingToast });
+    }
+  };
+
 
   const handleContact = async () => {
     if (!user) {
@@ -218,6 +255,15 @@ function ItemDetail({ user }) {
                   Ask for a specific detail or photo not shown in the original post.
                 </li>
               </ul>
+
+              {/* Report Button */}
+              <button 
+                onClick={handleReport}
+                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#E11D48]/30 rounded-xl text-[#E11D48] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#E11D48] hover:text-white transition-all group"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 group-hover:animate-pulse" />
+                Report Post
+              </button>
             </div>
           </div>
 

@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import toast, { Toaster } from "react-hot-toast"; // NEW: Toast import
 import { 
   ArrowLeft, 
   LogOut, 
-  User, 
   ShieldCheck, 
   Activity, 
   CheckCircle2, 
   Trash2, 
   Camera,
-  Mail
+  Mail,
+  AlertCircle, // NEW: Icon for rejected
+  Clock
 } from "lucide-react";
 
 function Profile({ user, setUser }) {
@@ -22,20 +24,13 @@ function Profile({ user, setUser }) {
   const [profileImage, setProfileImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  const [message, setMessage] = useState("");
   const [myItems, setMyItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  useEffect(() => {
-    if (message) {
-      const t = setTimeout(() => setMessage(""), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message]);
-
+  // Sync user data
   useEffect(() => {
     if (user) {
       setUsername(user.full_name || "");
@@ -80,17 +75,21 @@ function Profile({ user, setUser }) {
     localStorage.clear();
     setUser(null);
     navigate("/login");
+    toast.success("Signed out successfully");
   };
 
   const handleDelete = async (type, id) => {
     if (!window.confirm("Delete this report permanently?")) return;
+    const loadingToast = toast.loading("Deleting...");
     try {
       await axios.delete(`http://localhost:5000/api/items/delete/${type}/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMyItems((prev) => prev.filter((i) => !(i.id === id && i.type === type)));
-      setMessage("success: Deleted");
-    } catch { setMessage("error: Failed"); }
+      toast.success("Report deleted", { id: loadingToast });
+    } catch { 
+      toast.error("Failed to delete", { id: loadingToast }); 
+    }
   };
 
   const handleResolve = async (type, id) => {
@@ -100,11 +99,14 @@ function Profile({ user, setUser }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMyItems((prev) => prev.map((i) => i.id === id && i.type === type ? { ...i, status: "resolved" } : i));
-      setMessage("success: Resolved");
-    } catch { setMessage("error: Failed"); }
+      toast.success("Marked as resolved!");
+    } catch { 
+      toast.error("Action failed"); 
+    }
   };
 
   const handleProfileSave = async () => {
+    const loadingToast = toast.loading("Updating profile...");
     try {
       const formData = new FormData();
       formData.append("full_name", username);
@@ -116,9 +118,11 @@ function Profile({ user, setUser }) {
       });
 
       setEditMode(false);
-      setMessage("success: Updated");
+      toast.success("Profile updated!", { id: loadingToast });
       fetchUser();
-    } catch { setMessage("error: Failed"); }
+    } catch { 
+      toast.error("Update failed", { id: loadingToast }); 
+    }
   };
 
   const handleImageUpload = (e) => {
@@ -130,21 +134,27 @@ function Profile({ user, setUser }) {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) return setMessage("error: Password mismatch");
+    if (newPassword !== confirmPassword) return toast.error("Passwords do not match");
+    
     try {
       await axios.put("http://localhost:5000/api/auth/change-password", { password: newPassword }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage("success: Password updated");
+      toast.success("Password updated successfully");
       setNewPassword("");
       setConfirmPassword("");
-    } catch { setMessage("error: Failed"); }
+    } catch { 
+      toast.error("Failed to change password"); 
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="w-10 h-10 border-4 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-20 font-sans">
+      {/* Toast Container */}
+      <Toaster position="bottom-center" reverseOrder={false} />
+
       <div className="max-w-7xl mx-auto px-8 py-10">
 
         {/* TOP BAR */}
@@ -164,17 +174,10 @@ function Profile({ user, setUser }) {
           </button>
         </div>
 
-        {/* HERO SECTION */}
-        {/* <div className="mb-12">
-          <h1 className="text-4xl font-black text-[#111827] tracking-tight mb-2">My Account</h1>
-          <p className="text-[#6B7280] font-semibold">Manage your profile, security, and item activity.</p>
-        </div> */}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
           {/* LEFT: PROFILE & SECURITY */}
           <div className="lg:col-span-1 space-y-8">
-            
             {/* PROFILE CARD */}
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.02)] p-8">
               <div className="relative w-32 h-32 mx-auto mb-6 group">
@@ -277,20 +280,42 @@ function Profile({ user, setUser }) {
               {myItems.length > 0 ? (
                 <div className="space-y-6">
                   {myItems.map((item) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-3xl border border-gray-50 hover:border-[#4F46E5]/20 hover:shadow-md transition-all group">
+                    <div key={`${item.type}-${item.id}`} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-3xl border border-gray-50 hover:border-[#4F46E5]/20 hover:shadow-md transition-all group relative overflow-hidden">
+                      
+                      {/* Left: Content */}
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <p className="font-black text-lg text-[#111827] leading-none">{item.item_name}</p>
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${item.status === 'resolved' ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'bg-[#FFF1F2] text-[#E11D48]'}`}>
-                            {item.status}
-                          </span>
+                          
+                          {/* Status Badges */}
+                          {item.is_approved === 'rejected' ? (
+                            <span className="flex items-center gap-1 bg-[#FFF1F2] text-[#E11D48] text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                              <AlertCircle className="w-2.5 h-2.5" /> Rejected
+                            </span>
+                          ) : item.is_approved === 'pending' ? (
+                            <span className="flex items-center gap-1 bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                              <Clock className="w-2.5 h-2.5" /> Pending Approval
+                            </span>
+                          ) : (
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${item.status === 'resolved' ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'bg-emerald-50 text-emerald-600'}`}>
+                              {item.status === 'resolved' ? 'Resolved' : 'Live'}
+                            </span>
+                          )}
                         </div>
+                        
                         <p className="text-sm font-bold text-[#9CA3AF] mb-1">{item.location}</p>
-                        <p className="text-[10px] font-black text-[#D1D5DB] uppercase tracking-tighter">Reported as {item.type}</p>
+                        
+                        {/* Reject Reason (if any) */}
+                        {item.is_approved === 'rejected' && item.admin_feedback && (
+                          <p className="text-[11px] font-bold text-[#E11D48] italic bg-rose-50 px-3 py-1 rounded-lg mt-2 inline-block">
+                             Reason: {item.admin_feedback}
+                          </p>
+                        )}
                       </div>
 
+                      {/* Right: Actions */}
                       <div className="flex gap-3 w-full sm:w-auto">
-                        {item.status !== "resolved" && (
+                        {item.is_approved === 'approved' && item.status !== "resolved" && (
                           <button
                             onClick={() => handleResolve(item.type, item.id)}
                             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border-2 border-[#F3F4F6] rounded-xl text-xs font-black text-[#111827] uppercase tracking-widest hover:bg-[#F3F4F6] transition"
@@ -320,15 +345,6 @@ function Profile({ user, setUser }) {
             </div>
           </div>
         </div>
-
-        {/* TOAST MESSAGE */}
-        {message && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] animate-in slide-in-from-bottom-5 fade-in duration-300">
-            <div className={`px-8 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest ${message.startsWith('success') ? 'bg-[#111827] text-white' : 'bg-[#E11D48] text-white'}`}>
-              {message.split(":")[1]}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

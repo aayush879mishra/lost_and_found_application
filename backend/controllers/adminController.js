@@ -156,8 +156,6 @@ exports.resolveItem = async (req, res) => {
   }
 };
 
-
-
 exports.getResolvedReports = async (req, res) => {
   try {
     // Specifically querying for the 'resolved' status
@@ -170,5 +168,70 @@ exports.getResolvedReports = async (req, res) => {
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: "Error fetching archive" });
+  }
+};
+
+// --- NEW: ITEM APPROVAL MODERATION ---
+
+// Fetch all items waiting for approval
+exports.getPendingApprovals = async (req, res) => {
+  try {
+    const [lost] = await db.promise().query(`
+      SELECT *, 'lost' as item_type FROM lost_items WHERE is_approved = 'pending'
+    `);
+    const [found] = await db.promise().query(`
+      SELECT *, 'found' as item_type FROM found_items WHERE is_approved = 'pending'
+    `);
+
+    res.json([...lost, ...found]);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching pending requests" });
+  }
+};
+
+// Approve or Reject an item
+exports.handleApproval = async (req, res) => {
+  try {
+    const { id, type, decision, feedback } = req.body; 
+    // decision: 'approved' or 'rejected'
+    // type: 'lost' or 'found'
+
+    const table = type === 'lost' ? 'lost_items' : 'found_items';
+    const idCol = type === 'lost' ? 'lost_id' : 'found_id';
+
+    await db.promise().query(
+      `UPDATE ${table} SET is_approved = ?, admin_feedback = ? WHERE ${idCol} = ?`,
+      [decision, feedback || null, id]
+    );
+
+    res.json({ message: `Item successfully ${decision}` });
+  } catch (err) {
+    res.status(500).json({ message: "Approval action failed", error: err.message });
+  }
+};
+
+// GET: All reports for admin review
+exports.getReportedItems = async (req, res) => {
+  try {
+    const sql = `
+      SELECT 
+        r.report_id,
+        r.reason,
+        r.created_at AS reported_at,
+        u.full_name AS reporter_name,
+        i.item_name,
+        i.type AS item_type,
+        i.is_approved,
+        i.lost_id AS original_id -- You'll need logic to handle lost vs found IDs
+      FROM item_reports r
+      JOIN users u ON r.reporter_id = u.user_id
+      LEFT JOIN lost_items i ON r.item_id = i.lost_id AND r.item_type = 'lost'
+      -- Add UNION or similar logic for found_items depending on your DB structure
+      ORDER BY r.created_at DESC`;
+
+    const [rows] = await db.promise().query(sql);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

@@ -14,21 +14,23 @@ exports.postItem = async (req, res) => {
     const dateCol = type === 'lost' ? 'lost_date' : 'found_date';
 
     
+    // Added is_approved to the column list and 'pending' to the values
     const sql = `INSERT INTO ${table} 
-      (user_id, item_name, category, description, location, latitude, longitude, phone, ${dateCol}, image) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (user_id, item_name, category, description, location, latitude, longitude, phone, ${dateCol}, image, is_approved) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`; 
     
     await db.promise().query(sql, [
       user_id, item_name, category, description, location, 
       latitude, longitude, phone, date, image
     ]);
 
-    res.status(201).json({ message: "Item posted successfully" });
+    res.status(201).json({ message: "Item submitted for admin approval" });
   } catch (err) {
     console.error("Post error:", err);
     res.status(500).json({ message: "Post failed", error: err.message });
   }
 };
+
 
 // GET UNIVERSAL FEED (With Filters + Pagination)
 exports.getFeed = async (req, res) => {
@@ -45,7 +47,8 @@ exports.getFeed = async (req, res) => {
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    let whereClauses = ["status = 'active'"];
+    //  Only show active AND approved items 
+    let whereClauses = ["status = 'active'", "is_approved = 'approved'"];
     let whereParams = [];
 
     if (category && category !== "All") {
@@ -60,36 +63,17 @@ exports.getFeed = async (req, res) => {
 
     const whereSql = whereClauses.join(" AND ");
 
-    // Added latitude and longitude to the SELECT clauses
     const lostSql = `
-      SELECT 
-        lost_id AS id,
-        item_name,
-        category,
-        location,
-        latitude,
-        longitude,
-        image,
-        created_at,
-        'lost' AS type
+      SELECT lost_id AS id, item_name, category, location, latitude, longitude, image, created_at, 'lost' AS type, is_approved
       FROM lost_items
-      WHERE ${whereSql}
-    `;
+      WHERE ${whereSql}`;
 
     const foundSql = `
-      SELECT 
-        found_id AS id,
-        item_name,
-        category,
-        location,
-        latitude,
-        longitude,
-        image,
-        created_at,
-        'found' AS type
+      SELECT found_id AS id, item_name, category, location, latitude, longitude, image, created_at, 'found' AS type, is_approved
       FROM found_items
-      WHERE ${whereSql}
-    `;
+      WHERE ${whereSql}`;
+
+    
 
     let finalSql = "";
     let finalParams = [];
@@ -218,19 +202,18 @@ exports.deleteItem = async (req, res) => {
 
 exports.getMyActivity = async (req, res) => {
   try {
-    const user_id = req.user.user_id; // Get the ID from the decoded token
+    const user_id = req.user.user_id;
 
     const lostSql = `
-      SELECT lost_id AS id, item_name, category, location, image, created_at, status, 'lost' AS type 
+      SELECT lost_id AS id, item_name, category, location, image, created_at, status, is_approved, 'lost' AS type 
       FROM lost_items 
       WHERE user_id = ?`;
 
     const foundSql = `
-      SELECT found_id AS id, item_name, category, location, image, created_at, status, 'found' AS type 
+      SELECT found_id AS id, item_name, category, location, image, created_at, status, is_approved, 'found' AS type 
       FROM found_items 
       WHERE user_id = ?`;
 
-    // Combine both using UNION so the user sees all their posts in one list
     const sql = `(${lostSql}) UNION ALL (${foundSql}) ORDER BY created_at DESC`;
 
     const [items] = await db.promise().query(sql, [user_id, user_id]);
@@ -274,5 +257,48 @@ exports.notifyConnection = async (req, res) => {
   } catch (error) {
     console.error("Email Error:", error);
     res.status(500).json({ message: "Failed to send email" });
+  }
+};
+
+
+
+exports.reportPost = async (req, res) => {
+  const { item_id, item_type, reason } = req.body;
+  const reporter_id = req.user.user_id;
+  const tableName = item_type === 'lost' ? 'lost_items' : 'found_items';
+  const idColumn = item_type === 'lost' ? 'lost_id' : 'found_id';
+
+  try {
+    // 1. Record the report
+    await db.promise().query(
+      `INSERT INTO item_reports (reporter_id, item_id, item_type, reason) VALUES (?, ?, ?, ?)`,
+      [reporter_id, item_id, item_type, reason]
+    );
+
+    // 2. Check how many reports this post has now
+    const [countRows] = await db.promise().query(
+      `SELECT COUNT(*) as reportCount FROM item_reports WHERE item_id = ? AND item_type = ?`,
+      [item_id, item_type]
+    );
+
+    const reportCount = countRows[0].reportCount;
+
+    // 3. If count >= 5, auto-reject the post
+    if (reportCount >= 5) {
+      await db.promise().query(
+        `UPDATE ${tableName} 
+         SET is_approved = 'rejected', admin_feedback = 'Auto-rejected: Multiple community reports.' 
+         WHERE ${idColumn} = ?`,
+        [item_id]
+      );
+      return res.status(200).json({ message: "Post has been hidden due to community reports." });
+    }
+
+    res.status(201).json({ message: "Report submitted successfully." });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: "You have already reported this post." });
+    }
+    res.status(500).json({ message: "Reporting failed", error: err.message });
   }
 };

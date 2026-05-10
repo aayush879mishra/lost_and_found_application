@@ -12,4 +12,8 @@ router.delete("/users/:id", protect, admin, adminController.deleteUser);
 router.post("/items/resolve", protect, admin, adminController.resolveItem);
 router.get("/reports/resolved", protect, admin, adminController.getResolvedReports);
 
+router.get('/pending', protect, admin, adminController.getPendingApprovals);
+router.post('/approve-deny', protect, admin, adminController.handleApproval);
+router.get("/reportedItems", protect, admin, adminController.getReportedItems);
+
 module.exports = router;

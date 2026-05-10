@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 import 'leaflet/dist/leaflet.css';
@@ -29,90 +30,21 @@ import Privacy from "./Pages/Privacy";
 import Contact from "./Pages/Contact";
 import Help from "./Pages/Help";
 
-function App() {
-  // 1. Initialize user from localStorage to prevent logout on refresh
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-
-  console.log("APP USER STATE:", user);
-
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // If you wanted to verify the token with the backend, you'd do it here
-    setLoading(false);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center text-gray-500 font-medium">
-        Loading LostLink...
-      </div>
-    );
-  }
+function AppContent({ user, setUser }) {
+  const location = useLocation();
+  
+  // Define if the current page is the Admin Dashboard
+  const isAdminPage = location.pathname === "/admin";
 
   return (
     <>
-    <Toaster position="top-center" reverseOrder={false} />
+      {/* 1. Show Navbar ONLY if we are NOT on the admin page */}
+      {!isAdminPage && <Navbar user={user} setUser={setUser} />}
 
-    <Router>
-      {/* Navbar stays at the top and reacts to user state */}
-      <Navbar user={user} setUser={setUser} />
-
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto p-4 min-h-screen">
+      {/* 2. Conditional Layout Rendering */}
+      {isAdminPage ? (
+        /* ADMIN MODE: No containers, no padding, just the dashboard */
         <Routes>
-          {/* --- PUBLIC ROUTES --- */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/signup" element={<Signup />} />
-
-          {/* New OTP Route */}
-        <Route path="/verify-otp" element={<VerifyOTP />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-
-          {/* --- ITEM ROUTES --- */}
-          <Route path="/item/:type/:id" element={<ItemDetail user={user} />} />
-          <Route path="/all-items" element={<AllItems />} />
-
-
-          <Route path="/terms" element={<Terms />} />
-<Route path="/privacy" element={<Privacy />} />
-<Route path="/contact" element={<Contact />} />
-<Route path="/help" element={<Help />} />
-
-          {/* --- PROTECTED USER ROUTES --- */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute user={user}>
-                {/* Add setUser={setUser} here! */}
-                <Profile user={user} setUser={setUser} />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/report-lost"
-            element={
-              <ProtectedRoute user={user}>
-                <ReportLost />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/report-found"
-            element={
-              <ProtectedRoute user={user}>
-                <ReportFound />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* --- PROTECTED ADMIN ROUTE --- */}
           <Route
             path="/admin"
             element={
@@ -121,21 +53,104 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* <Route
-            path="/admin"
-            element={
-              <ProtectedRoute user={user} >
-                <AdminDashboard  />
-              </ProtectedRoute>
-            }
-          /> */}
-
-          {/* --- FALLBACK --- */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Catch-all for admin sub-paths if needed */}
+          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
-      </main>
-    </Router>
+      ) : (
+        /* USER MODE: Standard 'max-w-7xl' centered container with padding */
+        <main className="max-w-7xl mx-auto p-4 min-h-screen">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login setUser={setUser} />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/verify-otp" element={<VerifyOTP />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/all-items" element={<AllItems />} />
+            <Route path="/item/:type/:id" element={<ItemDetail user={user} />} />
+            
+            {/* Info Routes */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<Help />} />
+
+            {/* Protected User Routes */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute user={user}>
+                  <Profile user={user} setUser={setUser} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/report-lost"
+              element={
+                <ProtectedRoute user={user}>
+                  <ReportLost />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/report-found"
+              element={
+                <ProtectedRoute user={user}>
+                  <ReportFound />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Fallback for invalid public URLs */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      )}
+    </>
+  );
+}
+
+function App() {
+  // Initialize user from localStorage to persist session on refresh
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulated loading check (can be replaced with actual token verification)
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-500 font-medium">
+        <div className="animate-pulse">Loading LostLink...</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Global Toast Notifications */}
+      <Toaster 
+        position="top-center" 
+        reverseOrder={false} 
+        toastOptions={{
+          duration: 4000, // Slightly increased duration for better readability
+          style: {
+            borderRadius: '12px',
+            background: '#333',
+            color: '#fff',
+          },
+        }} 
+      />
+
+      <Router>
+        <AppContent user={user} setUser={setUser} />
+      </Router>
     </>
   );
 }

@@ -16,5 +16,6 @@ router.delete("/delete/:type/:id", protect, itemController.deleteItem);
 router.get("/my-activity", protect, itemController.getMyActivity);
 
 router.post("/notify-connection", protect, itemController.notifyConnection);
+router.post("/report", protect, itemController.reportPost);
 
 module.exports = router;
