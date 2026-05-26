@@ -158,16 +158,17 @@ exports.resolveItem = async (req, res) => {
 
 exports.getResolvedReports = async (req, res) => {
   try {
-    // Specifically querying for the 'resolved' status
-    const [rows] = await db.execute(
-      `SELECT * FROM lost_items WHERE status = 'resolved' 
+    // Selecting only the shared columns required for the dashboard lists
+    const [rows] = await db.promise().query(
+      `SELECT lost_id AS id, item_name, location, image, status, 'lost' AS type, created_at FROM lost_items WHERE status = 'resolved' 
        UNION ALL 
-       SELECT * FROM found_items WHERE status = 'resolved' 
-       ORDER BY updated_at DESC`
+       SELECT found_id AS id, item_name, location, image, status, 'found' AS type, created_at FROM found_items WHERE status = 'resolved' 
+       ORDER BY created_at DESC`
     );
     res.json(rows);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching archive" });
+    console.error("Error fetching resolved items:", error);
+    res.status(500).json({ message: "Error fetching archive", error: error.message });
   }
 };
 
@@ -176,16 +177,30 @@ exports.getResolvedReports = async (req, res) => {
 // Fetch all items waiting for approval
 exports.getPendingApprovals = async (req, res) => {
   try {
-    const [lost] = await db.promise().query(`
-      SELECT *, 'lost' as item_type FROM lost_items WHERE is_approved = 'pending'
-    `);
-    const [found] = await db.promise().query(`
-      SELECT *, 'found' as item_type FROM found_items WHERE is_approved = 'pending'
+    // We select l.* (which contains the item's original phone number) 
+    // and u.full_name for the creator context row text.
+    const [lostRows] = await db.promise().query(`
+      SELECT l.*, 'lost' AS item_type, u.full_name
+      FROM lost_items l
+      LEFT JOIN users u ON l.user_id = u.user_id
+      WHERE l.is_approved = 'pending'
     `);
 
-    res.json([...lost, ...found]);
+    const [foundRows] = await db.promise().query(`
+      SELECT f.*, 'found' AS item_type, u.full_name
+      FROM found_items f
+      LEFT JOIN users u ON f.user_id = u.user_id
+      WHERE f.is_approved = 'pending'
+    `);
+
+    const combinedPending = [...lostRows, ...foundRows].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+
+    res.json(combinedPending);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching pending requests" });
+    console.error("Error retrieving pending items:", err);
+    res.status(500).json({ message: "Failed to gather pending submissions." });
   }
 };
 
@@ -213,25 +228,40 @@ exports.handleApproval = async (req, res) => {
 // GET: All reports for admin review
 exports.getReportedItems = async (req, res) => {
   try {
-    const sql = `
+    // Dynamic join to grab target context names depending on item_type source
+    const [rows] = await db.promise().query(`
       SELECT 
         r.report_id,
+        r.item_id AS original_id,
+        r.item_type,
         r.reason,
-        r.created_at AS reported_at,
+        r.reported_at,
         u.full_name AS reporter_name,
-        i.item_name,
-        i.type AS item_type,
-        i.is_approved,
-        i.lost_id AS original_id -- You'll need logic to handle lost vs found IDs
+        COALESCE(l.item_name, f.item_name) AS item_name
       FROM item_reports r
-      JOIN users u ON r.reporter_id = u.user_id
-      LEFT JOIN lost_items i ON r.item_id = i.lost_id AND r.item_type = 'lost'
-      -- Add UNION or similar logic for found_items depending on your DB structure
-      ORDER BY r.created_at DESC`;
+      LEFT JOIN users u ON r.reporter_id = u.user_id
+      LEFT JOIN lost_items l ON r.item_id = l.lost_id AND r.item_type = 'lost'
+      LEFT JOIN found_items f ON r.item_id = f.found_id AND r.item_type = 'found'
+      ORDER BY r.reported_at DESC
+    `);
 
-    const [rows] = await db.promise().query(sql);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error collecting admin flags:", err);
+    res.status(500).json({ message: "Failed to gather reported items.", error: err.message });
+  }
+};
+
+// Ensure this is at the absolute end of your backend/controllers/adminController.js file
+exports.dismissReportFlag = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await db.promise().query("DELETE FROM item_reports WHERE report_id = ?", [id]);
+    
+    res.json({ message: "Report flag dismissed successfully. Post remains live." });
+  } catch (err) {
+    console.error("Error dismissing flag:", err);
+    res.status(500).json({ message: "Failed to dismiss flag", error: err.message });
   }
 };

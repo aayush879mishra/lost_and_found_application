@@ -23,54 +23,58 @@ function ItemDetail({ user }) {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/items/details/${type}/${id}`);
-        setItem(res.data);
-      } catch (err) {
-        console.error("Error fetching item:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDetails();
-  }, [type, id]);
-
-
-  // NEW: Handle Reporting Logic
-  const handleReport = async () => {
-    if (!user) {
-      toast.error("Please login to report posts.");
-      return;
-    }
-
-    const reason = window.prompt("Why are you reporting this post? (Spam, Fake, Inappropriate, etc.)");
-    
-    if (!reason) return;
-    if (reason.length < 5) {
-      toast.error("Please provide a valid reason.");
-      return;
-    }
-
-    const loadingToast = toast.loading("Submitting report...");
-    
+  const fetchDetails = async () => {
     try {
-      await axios.post("http://localhost:5000/api/items/report", {
-        item_id: id,
-        item_type: type,
-        reason: reason
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
-
-      toast.success("Post reported. Thank you for keeping LostLink safe!", { id: loadingToast }, {duration: 6000});
+      const res = await axios.get(`http://localhost:5000/api/items/details/${type}/${id}`);
+      setItem(res.data);
     } catch (err) {
-      const errorMsg = err.response?.data?.message || "Failed to submit report";
-      toast.error(errorMsg, { id: loadingToast });
+      console.error("Error fetching item:", err);
+    } finally {
+      setLoading(false); // ✅ Corrected from loading(false) to setLoading(false)
     }
   };
+  fetchDetails();
+}, [type, id]);
 
 
+ // Handle Reporting Logic
+const handleReport = async () => {
+  if (!user) {
+    toast.error("Please login to report posts.");
+    return;
+  }
+
+  const reason = window.prompt("Why are you reporting this post? (Spam, Fake, Inappropriate, etc.)");
+  
+  if (!reason) return;
+  if (reason.length < 5) {
+    toast.error("Please provide a valid reason.");
+    return;
+  }
+
+  const loadingToast = toast.loading("Submitting report...");
+  
+  try {
+    await axios.post("http://localhost:5000/api/items/report", {
+      item_id: id,
+      item_type: type,
+      reason: reason
+    }, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+
+    //   Fixed: Combined options into a single object wrapper
+    toast.success("Post reported. Thank you for keeping LostLink safe!", { 
+      id: loadingToast, 
+      duration: 6000 
+    });
+
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || "Failed to submit report";
+    //   Fixed here too just in case!
+    toast.error(errorMsg, { id: loadingToast });
+  }
+};
   const handleContact = async () => {
     if (!user) {
       alert("Please login to contact the owner.");
@@ -147,9 +151,17 @@ function ItemDetail({ user }) {
           <h1 className="text-5xl font-black text-[#111827] tracking-tight mb-4 leading-tight">
             {item.item_name}
           </h1>
-          <p className="flex items-center gap-2 text-[#6B7280] font-semibold">
-            <MapPin className="w-5 h-5 text-[#4F46E5]" /> {item.location}
-          </p>
+          <div className="space-y-1">
+            <p className="flex items-center gap-2 text-[#111827] text-lg font-bold">
+              <MapPin className="w-5 h-5 text-[#4F46E5] shrink-0" /> {item.location}
+            </p>
+            {/* Display human readable map location underneath manual location description */}
+            {item.address_name && (
+              <p className="text-xs font-medium text-[#6B7280] pl-7 leading-relaxed max-w-2xl">
+                <span className="font-bold text-[#4F46E5]">Map Reference:</span> {item.address_name}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -180,14 +192,6 @@ function ItemDetail({ user }) {
                   </p>
                   <p className="text-[#1F2937] font-bold text-lg">{item.category}</p>
                 </div>
-                {/* <div>
-                  <p className="text-[10px] font-black text-[#9CA3AF] uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <CheckCircle2 className="w-3 h-3" /> Found Status
-                  </p>
-                  <p className="text-[#1F2937] font-bold text-lg">
-                    {item.status === 'resolved' ? 'Recovered' : 'Not yet found'}
-                  </p>
-                </div> */}
               </div>
             </div>
 
@@ -200,6 +204,7 @@ function ItemDetail({ user }) {
                     lat={item.latitude} 
                     lng={item.longitude} 
                     itemName={item.item_name} 
+                    addressName={item.address_name || item.location} // Sends custom address or falls back to description
                   />
                 </div>
               </div>
@@ -210,7 +215,7 @@ function ItemDetail({ user }) {
           <div className="space-y-6">
             
             {/* CONTACT CARD */}
-            <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)]  top-8">
+            <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] top-8">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-14 h-14 bg-[#111827] rounded-2xl flex items-center justify-center text-xl font-black text-white">
                   {item.full_name?.charAt(0).toUpperCase()}
@@ -259,7 +264,7 @@ function ItemDetail({ user }) {
               {/* Report Button */}
               <button 
                 onClick={handleReport}
-                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#E11D48]/30 rounded-xl text-[#E11D48] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#E11D48] hover:text-white transition-all group"
+                className="w-full flex items-center justify-center gap-2 mt-6 py-3 border-2 border-dashed border-[#E11D48]/30 rounded-xl text-[#E11D48] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#E11D48] hover:text-white transition-all group"
               >
                 <AlertTriangle className="w-3.5 h-3.5 group-hover:animate-pulse" />
                 Report Post

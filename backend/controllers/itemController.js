@@ -5,22 +5,21 @@ const nodemailer = require("nodemailer");
 // POST A NEW ITEM (Lost or Found)
 exports.postItem = async (req, res) => {
   try {
-    
-    const { type, item_name, category, description, location, latitude, longitude, date, phone } = req.body;
+    // Destructured address_name sent from the React client side
+    const { type, item_name, category, description, location, address_name, latitude, longitude, date, phone } = req.body;
     const user_id = req.user.user_id;
     const image = req.file ? `/uploads/${req.file.filename}` : null;
 
     const table = type === 'lost' ? 'lost_items' : 'found_items';
     const dateCol = type === 'lost' ? 'lost_date' : 'found_date';
 
-    
-    // Added is_approved to the column list and 'pending' to the values
+    // Added address_name directly into columns and query markers
     const sql = `INSERT INTO ${table} 
-      (user_id, item_name, category, description, location, latitude, longitude, phone, ${dateCol}, image, is_approved) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`; 
+      (user_id, item_name, category, description, location, address_name, latitude, longitude, phone, ${dateCol}, image, is_approved) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`; 
     
     await db.promise().query(sql, [
-      user_id, item_name, category, description, location, 
+      user_id, item_name, category, description, location, address_name,
       latitude, longitude, phone, date, image
     ]);
 
@@ -47,7 +46,7 @@ exports.getFeed = async (req, res) => {
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    //  Only show active AND approved items 
+    // Only show active AND approved items 
     let whereClauses = ["status = 'active'", "is_approved = 'approved'"];
     let whereParams = [];
 
@@ -57,23 +56,22 @@ exports.getFeed = async (req, res) => {
     }
 
     if (search) {
-      whereClauses.push("(item_name LIKE ? OR location LIKE ? OR category LIKE ?)");
-      whereParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      whereClauses.push("(item_name LIKE ? OR location LIKE ? OR address_name LIKE ? OR category LIKE ?)");
+      whereParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     const whereSql = whereClauses.join(" AND ");
 
+    // Included address_name inside the lost and found selection targets
     const lostSql = `
-      SELECT lost_id AS id, item_name, category, location, latitude, longitude, image, created_at, 'lost' AS type, is_approved
+      SELECT lost_id AS id, item_name, category, location, address_name, latitude, longitude, image, created_at, 'lost' AS type, is_approved
       FROM lost_items
       WHERE ${whereSql}`;
 
     const foundSql = `
-      SELECT found_id AS id, item_name, category, location, latitude, longitude, image, created_at, 'found' AS type, is_approved
+      SELECT found_id AS id, item_name, category, location, address_name, latitude, longitude, image, created_at, 'found' AS type, is_approved
       FROM found_items
       WHERE ${whereSql}`;
-
-    
 
     let finalSql = "";
     let finalParams = [];
@@ -104,8 +102,7 @@ exports.getItemDetails = async (req, res) => {
     const table = type === 'lost' ? 'lost_items' : 'found_items';
     const idCol = type === 'lost' ? 'lost_id' : 'found_id';
 
-    // 3. Updated SELECT to use t.phone (the item-specific contact) 
-    // and fallback to u.phone if needed
+    // t.* pulls the raw rows including address_name automatically
     const sql = `
       SELECT t.*, u.full_name, u.email, 
       COALESCE(t.phone, u.phone) as phone
@@ -139,21 +136,17 @@ exports.createRequest = async (req, res) => {
 };
 
 // RESOLVE ITEM (Owner confirms item is returned/found)
-
 exports.resolveItem = async (req, res) => {
   try {
-    const { type, id } = req.body; // Expecting { type: 'lost', id: 123 }
+    const { type, id } = req.body; 
     const user_id = req.user.user_id;
 
-    // 1. Determine table and ID column dynamically
     const table = type === 'lost' ? 'lost_items' : 'found_items';
     const idCol = type === 'lost' ? 'lost_id' : 'found_id';
 
-    // 2. Run the update with an ownership check
     const sql = `UPDATE ${table} SET status = 'resolved' WHERE ${idCol} = ? AND user_id = ?`;
     const [result] = await db.promise().query(sql, [id, user_id]);
 
-    // 3. Check if anything actually changed (prevent unauthorized resolve)
     if (result.affectedRows === 0) {
       return res.status(403).json({ 
         message: "Action denied. You either don't own this post or it doesn't exist." 
@@ -169,14 +162,12 @@ exports.resolveItem = async (req, res) => {
 
 exports.deleteItem = async (req, res) => {
   const { type, id } = req.params;
-  const userId = req.user.user_id; // Using user_id from your middleware
+  const userId = req.user.user_id; 
 
-  // 1. Determine table AND the correct ID column name
   const tableName = type === "lost" ? "lost_items" : "found_items";
   const idColumn = type === "lost" ? "lost_id" : "found_id";
 
   try {
-    // 2. Check ownership using the correct column name
     const [item] = await db.promise().query(
       `SELECT user_id FROM ${tableName} WHERE ${idColumn} = ?`, 
       [id]
@@ -190,7 +181,6 @@ exports.deleteItem = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized: You can only delete your own posts." });
     }
 
-    // 3. Perform the deletion using the correct column name
     await db.promise().query(`DELETE FROM ${tableName} WHERE ${idColumn} = ?`, [id]);
 
     res.status(200).json({ message: "Post deleted successfully." });
@@ -204,13 +194,14 @@ exports.getMyActivity = async (req, res) => {
   try {
     const user_id = req.user.user_id;
 
+    // Added address_name payload selection here to track user listings precisely
     const lostSql = `
-      SELECT lost_id AS id, item_name, category, location, image, created_at, status, is_approved, 'lost' AS type 
+      SELECT lost_id AS id, item_name, category, location, address_name, image, created_at, status, is_approved, 'lost' AS type 
       FROM lost_items 
       WHERE user_id = ?`;
 
     const foundSql = `
-      SELECT found_id AS id, item_name, category, location, image, created_at, status, is_approved, 'found' AS type 
+      SELECT found_id AS id, item_name, category, location, address_name, image, created_at, status, is_approved, 'found' AS type 
       FROM found_items 
       WHERE user_id = ?`;
 
@@ -223,7 +214,6 @@ exports.getMyActivity = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch activity log" });
   }
 };
-
 
 exports.notifyConnection = async (req, res) => {
   try {
@@ -260,8 +250,6 @@ exports.notifyConnection = async (req, res) => {
   }
 };
 
-
-
 exports.reportPost = async (req, res) => {
   const { item_id, item_type, reason } = req.body;
   const reporter_id = req.user.user_id;
@@ -269,13 +257,11 @@ exports.reportPost = async (req, res) => {
   const idColumn = item_type === 'lost' ? 'lost_id' : 'found_id';
 
   try {
-    // 1. Record the report
     await db.promise().query(
       `INSERT INTO item_reports (reporter_id, item_id, item_type, reason) VALUES (?, ?, ?, ?)`,
       [reporter_id, item_id, item_type, reason]
     );
 
-    // 2. Check how many reports this post has now
     const [countRows] = await db.promise().query(
       `SELECT COUNT(*) as reportCount FROM item_reports WHERE item_id = ? AND item_type = ?`,
       [item_id, item_type]
@@ -283,13 +269,12 @@ exports.reportPost = async (req, res) => {
 
     const reportCount = countRows[0].reportCount;
 
-    // 3. If count >= 5, auto-reject the post
     if (reportCount >= 5) {
       await db.promise().query(
         `UPDATE ${tableName} 
          SET is_approved = 'rejected', admin_feedback = 'Auto-rejected: Multiple community reports.' 
          WHERE ${idColumn} = ?`,
-        [item_id]
+         [item_id]
       );
       return res.status(200).json({ message: "Post has been hidden due to community reports." });
     }

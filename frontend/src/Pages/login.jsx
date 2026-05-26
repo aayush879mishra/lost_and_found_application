@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { toast } from "react-hot-toast";
-import { Mail, Lock, ArrowRight, LogIn } from "lucide-react";
+import { Mail, Lock, LogIn } from "lucide-react";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");
@@ -50,7 +50,13 @@ function Login({ setUser }) {
       setUser(data.user);
       
       toast.success("Welcome back!");
-      navigate("/");
+
+      // DYNAMIC REDIRECT BASED ON USER ROLE
+      if (data.user?.role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
     } catch (error) {
       toast.dismiss(loadingToast);
       toast.error("Server error. Please try again later.");
@@ -75,8 +81,15 @@ function Login({ setUser }) {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
+      
       toast.success("Login Successful!");
-      navigate("/");
+
+      // DYNAMIC REDIRECT FOR GOOGLE OAUTH LOGINS
+      if (data.user?.role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       toast.dismiss(loadingToast);
       toast.error("Google login failed");
@@ -85,12 +98,6 @@ function Login({ setUser }) {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] flex flex-col justify-center items-center px-4 font-sans">
-      
-      {/* BRANDING */}
-      {/* <Link to="/" className="mb-8 text-3xl font-black text-[#4F46E5] no-underline tracking-tighter">
-        LostLink
-      </Link> */}
-
       <div className="w-full max-w-[440px] bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] text-center">
         
         <h2 className="text-3xl font-black text-[#111827] tracking-tight mb-2">Welcome Back</h2>
@@ -134,7 +141,7 @@ function Login({ setUser }) {
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black text-[#9CA3AF] uppercase tracking-widest">Password</label>
-              <Link to="/forgot-password" size="sm" className="text-[10px] font-black text-[#4F46E5] uppercase tracking-wider hover:opacity-70">
+              <Link to="/forgot-password" className="text-[10px] font-black text-[#4F46E5] uppercase tracking-wider hover:opacity-70">
                 Forgot?
               </Link>
             </div>

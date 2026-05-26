@@ -9,7 +9,8 @@ import {
   MessageCircle, 
   UploadCloud, 
   ChevronLeft,
-  ChevronDown
+  ChevronDown,
+  Loader2 // Added for a clean loading spinner when fetching the address
 } from "lucide-react"; 
 import MapPicker from "../Components/MapPicker";
 
@@ -22,10 +23,13 @@ function ReportFound() {
   }, [navigate]);
 
   const [loading, setLoading] = useState(false);
+  const [fetchingAddress, setFetchingAddress] = useState(false); // Track reverse geocoding state
+
   const [formData, setFormData] = useState({
     item_name: "",
     category: "",
     location: "",
+    address_name: "", // Added to map seamlessly with your backend body parser
     description: "",
     date: "",
     latitude: null,
@@ -45,8 +49,39 @@ function ReportFound() {
     }
   };
 
-  const handleLocationSelect = (coords) => {
-    setFormData((prev) => ({ ...prev, latitude: coords.lat, longitude: coords.lng }));
+  // Reverse Geocoding Logic using free OpenStreetMap Nominatim API
+  const handleLocationSelect = async (coords) => {
+    setFormData((prev) => ({
+      ...prev,
+      latitude: coords.lat,
+      longitude: coords.lng,
+    }));
+
+    setFetchingAddress(true);
+    try {
+      const response = await axios.get(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}`
+      );
+      
+      if (response.data && response.data.display_name) {
+        const fullAddress = response.data.display_name;
+        
+        setFormData((prev) => ({
+          ...prev,
+          address_name: fullAddress,
+          // Automatically pre-fill the manual location input field if empty
+          location: prev.location || response.data.name || fullAddress.split(",")[0]
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching location name:", error);
+      setFormData((prev) => ({
+        ...prev,
+        address_name: `Pinned Coords: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+      }));
+    } finally {
+      setFetchingAddress(false);
+    }
   };
 
   const handleImageChange = (e) => {
@@ -67,7 +102,9 @@ function ReportFound() {
     setLoading(true);
     const data = new FormData();
     // Explicitly set type to 'found'
-    Object.entries({ ...formData, type: "found" }).forEach(([key, value]) => data.append(key, value));
+    Object.entries({ ...formData, type: "found" }).forEach(([key, value]) => {
+      data.append(key, value);
+    });
     if (image) data.append("image", image);
 
     try {
@@ -78,7 +115,10 @@ function ReportFound() {
           "Content-Type": "multipart/form-data",
         },
       });
-      toast.success("Found report submitted successfully!");
+      toast.success("Report submitted successfully! It has been sent for admin approval and will appear in the feed once verified.", {
+  duration: 6000,
+  position: "top-center" // Optional: keeps it prominent at the top center of the screen
+});
       navigate("/");
     } catch (err) {
       toast.error(err.response?.data?.message || "Submission failed.");
@@ -151,6 +191,22 @@ function ReportFound() {
                 </div>
               </div>
 
+              {/* DYNAMIC ADDRESS LINK IN ITEM DETAILS */}
+              {(fetchingAddress || formData.address_name) && (
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[1.25rem] p-4 flex items-center gap-3 transition-all">
+                  <MapPin className="w-4 h-4 text-[#6B7280]" />
+                  <span className="text-xs font-semibold text-[#4B5563]">
+                    {fetchingAddress ? (
+                      <span className="flex items-center gap-2 text-[#9CA3AF]">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Resolving map address...
+                      </span>
+                    ) : (
+                      <span>Linked Location: <span className="font-normal text-[#6B7280]">{formData.address_name}</span></span>
+                    )}
+                  </span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Detailed Description</label>
                 <textarea
@@ -191,6 +247,7 @@ function ReportFound() {
                   name="location"
                   placeholder="e.g. Near the South Gate parking"
                   required
+                  value={formData.location}
                   onChange={handleChange}
                   className="w-full bg-[#F3F4F6] p-5 rounded-[1.25rem] outline-none placeholder:text-[#9CA3AF] font-medium"
                 />
@@ -198,9 +255,27 @@ function ReportFound() {
             </div>
 
             <label className="block text-[11px] font-bold text-[#9CA3AF] mb-3 uppercase tracking-[0.15em]">Pin Found Location on Map</label>
-            <div className="rounded-[1.5rem] overflow-hidden border border-[#E5E7EB] h-80 bg-[#F9FAFB] relative shadow-inner">
+            <div className="rounded-[1.5rem] overflow-hidden border border-[#E5E7EB] h-80 bg-[#F9FAFB] relative shadow-inner mb-4">
               <MapPicker setLocation={handleLocationSelect} />
             </div>
+
+            {/* DYNAMIC DROPPED PIN ADDRESS DISPLAY */}
+            {(fetchingAddress || formData.address_name) && (
+              <div className="bg-[#F5F7FF] rounded-[1.25rem] p-4 border border-[#E0E7FF] flex items-start gap-3 animate-fadeIn">
+                <MapPin className="w-5 h-5 text-[#4F46E5] shrink-0 mt-0.5" />
+                <div className="text-sm font-medium text-[#374151]">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-[#4F46E5] mb-1">Selected Place:</span>
+                  {fetchingAddress ? (
+                    <div className="flex items-center gap-2 text-[#6B7280]">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#4F46E5]" />
+                      Finding address name...
+                    </div>
+                  ) : (
+                    <p className="leading-relaxed">{formData.address_name}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* SECTION 3: MEDIA & CONTACT */}

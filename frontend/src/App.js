@@ -33,31 +33,31 @@ import Help from "./Pages/Help";
 function AppContent({ user, setUser }) {
   const location = useLocation();
   
-  // Define if the current page is the Admin Dashboard
-  const isAdminPage = location.pathname === "/admin";
+  // Clean, reactive conditional check: Is the logged-in user an admin?
+  const isAdmin = user?.role === "admin";
 
   return (
     <>
-      {/* 1. Show Navbar ONLY if we are NOT on the admin page */}
-      {!isAdminPage && <Navbar user={user} setUser={setUser} />}
+      {/* 1. Show Navbar ONLY if the user is NOT an admin */}
+      {!isAdmin && <Navbar user={user} setUser={setUser} />}
 
-      {/* 2. Conditional Layout Rendering */}
-      {isAdminPage ? (
-        /* ADMIN MODE: No containers, no padding, just the dashboard */
+      {/* 2. Conditional Layout Rendering based on USER ROLE, not just path strings */}
+      {isAdmin ? (
+        /* ADMIN MODE: No main container padding, completely dedicated route tree */
         <Routes>
           <Route
             path="/admin"
             element={
               <ProtectedRoute user={user} adminOnly={true}>
-                <AdminDashboard user={user} />
+                <AdminDashboard user={user} setUser={setUser} />
               </ProtectedRoute>
             }
           />
-          {/* Catch-all for admin sub-paths if needed */}
+          {/* Catch-all for Admins: Redirects any page request (like '/') straight to the dashboard */}
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       ) : (
-        /* USER MODE: Standard 'max-w-7xl' centered container with padding */
+        /* USER MODE: Standard centered page container with padding */
         <main className="max-w-7xl mx-auto p-4 min-h-screen">
           <Routes>
             {/* Public Routes */}
@@ -101,6 +101,9 @@ function AppContent({ user, setUser }) {
               }
             />
 
+            {/* Protect /admin path if regular users manually type it into URL bar */}
+            <Route path="/admin" element={<Navigate to="/login" replace />} />
+
             {/* Fallback for invalid public URLs */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -139,7 +142,7 @@ function App() {
         position="top-center" 
         reverseOrder={false} 
         toastOptions={{
-          duration: 4000, // Slightly increased duration for better readability
+          duration: 4000,
           style: {
             borderRadius: '12px',
             background: '#333',
