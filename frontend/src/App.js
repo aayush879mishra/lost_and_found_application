@@ -30,6 +30,10 @@ import Privacy from "./Pages/Privacy";
 import Contact from "./Pages/Contact";
 import Help from "./Pages/Help";
 
+// Chat Pages
+import ChatInbox from "./Pages/ChatInbox";
+
+
 function AppContent({ user, setUser }) {
   const location = useLocation();
   
@@ -43,7 +47,7 @@ function AppContent({ user, setUser }) {
 
       {/* 2. Conditional Layout Rendering based on USER ROLE, not just path strings */}
       {isAdmin ? (
-        /* ADMIN MODE: No main container padding, completely dedicated route tree */
+        /* ADMIN MODE: completely dedicated route tree */
         <Routes>
           <Route
             path="/admin"
@@ -100,6 +104,12 @@ function AppContent({ user, setUser }) {
                 </ProtectedRoute>
               }
             />
+
+            <Route path="/inbox" element={
+              <ProtectedRoute user={user}>
+                <ChatInbox />
+              </ProtectedRoute>
+            } />
 
             {/* Protect /admin path if regular users manually type it into URL bar */}
             <Route path="/admin" element={<Navigate to="/login" replace />} />

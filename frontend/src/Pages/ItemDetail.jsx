@@ -8,8 +8,8 @@ import {
   Clock, 
   ShieldAlert, 
   MessageCircle, 
+  MessageSquare, // Added for the explicit in-app chat button element
   Tag, 
-  Palette, 
   CheckCircle2, 
   AlertTriangle
 } from "lucide-react";
@@ -21,70 +21,114 @@ function ItemDetail({ user }) {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false); // Spinner state management for chat room creation
 
   useEffect(() => {
-  const fetchDetails = async () => {
+    const fetchDetails = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/items/details/${type}/${id}`);
+        setItem(res.data);
+      } catch (err) {
+        console.error("Error fetching item:", err);
+        toast.error("Failed to load item specifics.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [type, id]);
+
+  // Handle In-App Chat Initializer Engine
+  const handleStartChat = async () => {
+    if (!user) {
+      toast.error("Please login to message the owner.");
+      navigate("/login");
+      return;
+    }
+
+    // Guard Clause: Prevent users from chatting with themselves
+    if (Number(user.user_id) === Number(item.user_id)) {
+      toast.error("This is your own post! You cannot start a conversation with yourself.");
+      return;
+    }
+
+    setChatLoading(true);
+    const loadingToast = toast.loading("Connecting to chat workspace...");
+
     try {
-      const res = await axios.get(`http://localhost:5000/api/items/details/${type}/${id}`);
-      setItem(res.data);
+      const res = await axios.post(
+        "http://localhost:5000/api/chat/room",
+        {
+          item_id: id,
+          item_type: type,
+          receiver_id: item.user_id
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        }
+      );
+
+      toast.success("Conversation opened!", { id: loadingToast });
+      
+      // Pass the targeted room_id directly onto the location state tree for auto-selection
+      navigate("/inbox", { state: { autoSelectRoomId: res.data.room_id } });
+
     } catch (err) {
-      console.error("Error fetching item:", err);
+      console.error("Chat initiation failed:", err);
+      const errText = err.response?.data?.message || "Failed to link up a dynamic chat channel.";
+      toast.error(errText, { id: loadingToast });
     } finally {
-      setLoading(false); // ✅ Corrected from loading(false) to setLoading(false)
+      setChatLoading(false);
     }
   };
-  fetchDetails();
-}, [type, id]);
 
+  // Handle Reporting Logic
+  const handleReport = async () => {
+    if (!user) {
+      toast.error("Please login to report posts.");
+      return;
+    }
 
- // Handle Reporting Logic
-const handleReport = async () => {
-  if (!user) {
-    toast.error("Please login to report posts.");
-    return;
-  }
+    const reason = window.prompt("Why are you reporting this post? (Spam, Fake, Inappropriate, etc.)");
+    
+    if (!reason) return;
+    if (reason.length < 5) {
+      toast.error("Please provide a valid reason.");
+      return;
+    }
 
-  const reason = window.prompt("Why are you reporting this post? (Spam, Fake, Inappropriate, etc.)");
-  
-  if (!reason) return;
-  if (reason.length < 5) {
-    toast.error("Please provide a valid reason.");
-    return;
-  }
+    const loadingToast = toast.loading("Submitting report...");
+    
+    try {
+      await axios.post("http://localhost:5000/api/items/report", {
+        item_id: id,
+        item_type: type,
+        reason: reason
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
 
-  const loadingToast = toast.loading("Submitting report...");
-  
-  try {
-    await axios.post("http://localhost:5000/api/items/report", {
-      item_id: id,
-      item_type: type,
-      reason: reason
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    });
+      toast.success("Post reported. Thank you for keeping LostLink safe!", { 
+        id: loadingToast, 
+        duration: 6000 
+      });
 
-    //   Fixed: Combined options into a single object wrapper
-    toast.success("Post reported. Thank you for keeping LostLink safe!", { 
-      id: loadingToast, 
-      duration: 6000 
-    });
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to submit report";
+      toast.error(errorMsg, { id: loadingToast });
+    }
+  };
 
-  } catch (err) {
-    const errorMsg = err.response?.data?.message || "Failed to submit report";
-    //   Fixed here too just in case!
-    toast.error(errorMsg, { id: loadingToast });
-  }
-};
   const handleContact = async () => {
     if (!user) {
-      alert("Please login to contact the owner.");
+      toast.error("Please login to contact the owner.");
       navigate("/login");
       return;
     }
 
     const cleanPhone = item.phone ? item.phone.replace(/\D/g, "") : "";
     if (!cleanPhone) {
-      alert("This user has not provided a valid contact number.");
+      toast.error("This user has not provided a valid contact number.");
       return;
     }
 
@@ -101,7 +145,7 @@ const handleReport = async () => {
     } catch (err) {
       console.error("Notification failed:", err);
     } finally {
-      const message = `Hi ${item.full_name || "there"}, I saw your report on LostLink for the ${item.type} item: "${item.item_name}". I'd like to discuss this with you.`;
+      const message = `Hi ${item.full_name || "there"}, I saw your report on LostLink for the ${type} item: "${item.item_name}". I'd like to discuss this with you.`;
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, "_blank");
       setTimeout(() => setSending(false), 1000);
@@ -140,9 +184,9 @@ const handleReport = async () => {
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
             <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-              item.type === 'lost' ? 'bg-[#FFF1F2] text-[#E11D48]' : 'bg-[#EEF2FF] text-[#4F46E5]'
+              type === 'lost' ? 'bg-[#FFF1F2] text-[#E11D48]' : 'bg-[#EEF2FF] text-[#4F46E5]'
             }`}>
-              {item.type}
+              {type}
             </span>
             <span className="flex items-center gap-1.5 text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
               <Clock className="w-3.5 h-3.5" /> Reported {new Date(item.created_at).toLocaleDateString()}
@@ -155,7 +199,6 @@ const handleReport = async () => {
             <p className="flex items-center gap-2 text-[#111827] text-lg font-bold">
               <MapPin className="w-5 h-5 text-[#4F46E5] shrink-0" /> {item.location}
             </p>
-            {/* Display human readable map location underneath manual location description */}
             {item.address_name && (
               <p className="text-xs font-medium text-[#6B7280] pl-7 leading-relaxed max-w-2xl">
                 <span className="font-bold text-[#4F46E5]">Map Reference:</span> {item.address_name}
@@ -168,7 +211,6 @@ const handleReport = async () => {
           
           {/* LEFT COLUMN: VISUALS & CONTENT */}
           <div className="lg:col-span-2 space-y-12">
-            
             {/* MAIN IMAGE */}
             <div className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-white">
               <img 
@@ -204,7 +246,7 @@ const handleReport = async () => {
                     lat={item.latitude} 
                     lng={item.longitude} 
                     itemName={item.item_name} 
-                    addressName={item.address_name || item.location} // Sends custom address or falls back to description
+                    addressName={item.address_name || item.location} 
                   />
                 </div>
               </div>
@@ -226,21 +268,39 @@ const handleReport = async () => {
                 </div>
               </div>
 
-              <button 
-                onClick={handleContact}
-                disabled={sending}
-                className={`w-full py-5 rounded-2xl text-base font-black flex items-center justify-center gap-3 transition-all transform active:scale-95 ${
-                  sending
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-[#22C55E] text-white hover:bg-[#16A34A] shadow-[0_10px_20px_rgba(34,197,94,0.2)]"
-                }`}
-              >
-                <MessageCircle className="w-5 h-5" />
-                {sending ? "Connecting..." : "Contact via WhatsApp"}
-              </button>
+              {/* ACTION BUTTON GRID CONFIGURATION */}
+              <div className="space-y-3">
+                {/* 1. New In-App Chat Integration Trigger */}
+                <button 
+                  onClick={handleStartChat}
+                  disabled={chatLoading}
+                  className={`w-full py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-3 border transition-all active:scale-95 ${
+                    chatLoading
+                      ? "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-[#111827] text-white border-transparent hover:bg-slate-800 shadow-[0_8px_20px_rgba(17,24,39,0.15)]"
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                  {chatLoading ? "Initializing Room..." : "Chat on LostLink"}
+                </button>
 
-              <p className="mt-6 text-center text-xs font-bold text-[#9CA3AF] leading-relaxed">
-                Your safety is our priority. Always meet in a public, well-lit area when exchanging items.
+                {/* 2. Legacy WhatsApp Fallback Action */}
+                <button 
+                  onClick={handleContact}
+                  disabled={sending}
+                  className={`w-full py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-3 transition-all transform active:scale-95 ${
+                    sending
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-emerald-50 text-[#16A34A] border border-emerald-100 hover:bg-emerald-100/50"
+                  }`}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  {sending ? "Redirecting..." : "Open in WhatsApp"}
+                </button>
+              </div>
+
+              <p className="mt-6 text-center text-[11px] font-bold text-[#9CA3AF] leading-relaxed">
+                Your safety is our priority. Always meet in public, well-lit areas when exchanging claims.
               </p>
             </div>
 
@@ -253,11 +313,11 @@ const handleReport = async () => {
               <ul className="space-y-4">
                 <li className="flex gap-3 text-xs font-bold text-[#9F1239] leading-relaxed">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] mt-1 shrink-0" />
-                  Never send money for shipping before verifying the item's existence.
+                  Never send money for shipping before verifying the item's physical existence.
                 </li>
                 <li className="flex gap-3 text-xs font-bold text-[#9F1239] leading-relaxed">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] mt-1 shrink-0" />
-                  Ask for a specific detail or photo not shown in the original post.
+                  Ask for a specific unique identifier not shown in the original post.
                 </li>
               </ul>
 
